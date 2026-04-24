@@ -1,0 +1,12 @@
+[copilot]
+model = "gpt-4.1"
+idle_timeout_minutes = 30
+
+[channels]
+enabled = ["discord"]
+
+[channels.discord]
+allowlist = ["YOUR_DISCORD_USER_ID"]
+
+[channels.telegram]
+allowlist = []
