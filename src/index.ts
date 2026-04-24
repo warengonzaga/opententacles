@@ -23,8 +23,6 @@ async function main(): Promise<void> {
 
   openDb();
 
-  // CopilotClient reads COPILOT_GITHUB_TOKEN from the environment
-  process.env["COPILOT_GITHUB_TOKEN"] = secrets.copilotGithubToken;
   const client = new CopilotClient() as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
     client,

@@ -1,7 +1,6 @@
 import { SecretsEngine } from "@wgtechlabs/secrets-engine";
 
 export interface AppSecrets {
-  copilotGithubToken: string;
   copilotModel: string;
   copilotIdleTimeoutMinutes: number;
   channelsEnabled: string[];
@@ -13,7 +12,6 @@ export interface AppSecrets {
 }
 
 const SECRET_KEYS = [
-  "copilot.githubToken",
   "copilot.model",
   "copilot.idleTimeoutMinutes",
   "channels.enabled",
@@ -23,11 +21,6 @@ const SECRET_KEYS = [
 ] as const;
 
 export function buildAppSecrets(raw: Record<string, string | null>): AppSecrets {
-  const copilotGithubToken = raw["copilot.githubToken"];
-  if (!copilotGithubToken) {
-    throw new Error("copilot.githubToken not set. Run `bun run setup`.");
-  }
-
   const copilotModel = raw["copilot.model"] ?? "gpt-4.1";
 
   const idleTimeoutMinutes = parseInt(raw["copilot.idleTimeoutMinutes"] ?? "30", 10);
@@ -41,7 +34,6 @@ export function buildAppSecrets(raw: Record<string, string | null>): AppSecrets 
   const discordBotToken = raw["discord.botToken"] ?? "";
 
   return {
-    copilotGithubToken,
     copilotModel,
     copilotIdleTimeoutMinutes: idleTimeoutMinutes,
     channelsEnabled,

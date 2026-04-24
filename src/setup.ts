@@ -13,9 +13,9 @@ function ask(question: string): Promise<string> {
 
 async function main(): Promise<void> {
   console.log("OpenTentacles — setup\n");
+  console.log("Copilot auth uses your existing `gh` CLI login — no token needed.\n");
   console.log("Secrets are stored encrypted on this machine via @wgtechlabs/secrets-engine.\n");
 
-  const copilotToken = await ask("GitHub Copilot token: ");
   const discordToken = await ask("Discord bot token: ");
   const allowlistRaw = await ask("Discord user IDs to allowlist (comma-separated, blank = open): ");
   const channelsRaw = await ask("Enabled channels (comma-separated, default: discord): ");
@@ -25,7 +25,6 @@ async function main(): Promise<void> {
 
   const engine = await SecretsEngine.open();
 
-  await engine.set("copilot.githubToken", copilotToken);
   await engine.set("discord.botToken", discordToken);
 
   const allowlist = allowlistRaw
