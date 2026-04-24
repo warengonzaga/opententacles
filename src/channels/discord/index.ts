@@ -17,12 +17,8 @@ class DiscordChannel implements Channel {
   private typingTimers = new Map<string, ReturnType<typeof setInterval>>();
 
   async start(ctx: ChannelContext): Promise<void> {
-    const token = Bun.env.DISCORD_BOT_TOKEN;
-    if (!token) {
-      throw new Error("DISCORD_BOT_TOKEN is not set");
-    }
     const cfg = DiscordChannelConfig.parse(ctx.config ?? {});
-    const client = createDiscordClient({ token });
+    const client = createDiscordClient({ token: cfg.botToken });
     this.client = client;
 
     client.once(Events.ClientReady, (c) => {
@@ -48,7 +44,7 @@ class DiscordChannel implements Channel {
       }
     });
 
-    await client.login(token);
+    await client.login(cfg.botToken);
   }
 
   async stop(): Promise<void> {

@@ -1,5 +1,5 @@
 import { approveAll, CopilotClient } from "@github/copilot-sdk";
-import { channelConfig, loadConfig, loadEnv } from "./core/config.ts";
+import { channelConfig, loadSecrets, type AppSecrets } from "./core/config.ts";
 import { CopilotOrchestrator, type CopilotClientLike } from "./core/copilot.ts";
 import { openDb } from "./core/db.ts";
 import { createLogger } from "./core/logger.ts";
@@ -7,34 +7,36 @@ import type { Channel } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
 async function main(): Promise<void> {
-  const env = loadEnv();
-  const logger = createLogger(env.logLevel);
-
-  if (!env.copilotGithubToken) {
-    logger.error("COPILOT_GITHUB_TOKEN is not set. See .env.example.");
+  let secrets: AppSecrets;
+  try {
+    secrets = await loadSecrets();
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   }
 
-  const config = await loadConfig(env.configPath);
+  const logger = createLogger(secrets.logLevel);
   logger.info(
-    { channels: config.channels.enabled, model: config.copilot.model },
+    { channels: secrets.channelsEnabled, model: secrets.copilotModel },
     "opententacles starting",
   );
 
   openDb();
 
+  // CopilotClient reads COPILOT_GITHUB_TOKEN from the environment
+  process.env["COPILOT_GITHUB_TOKEN"] = secrets.copilotGithubToken;
   const client = new CopilotClient() as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
     client,
-    model: config.copilot.model,
-    idleTimeoutMs: config.copilot.idle_timeout_minutes * 60_000,
+    model: secrets.copilotModel,
+    idleTimeoutMs: secrets.copilotIdleTimeoutMinutes * 60_000,
     permissionHandler: approveAll,
     logger: logger.child({ component: "copilot" }),
   });
   orchestrator.start();
 
   const channels = await discoverChannels({
-    enabled: config.channels.enabled,
+    enabled: secrets.channelsEnabled,
     logger: logger.child({ component: "registry" }),
   });
 
@@ -45,7 +47,7 @@ async function main(): Promise<void> {
       await channel.start({
         copilot: orchestrator,
         logger: childLogger,
-        config: channelConfig(config, channel.name),
+        config: channelConfig(secrets, channel.name),
       });
       started.push(channel);
       childLogger.info("channel started");
