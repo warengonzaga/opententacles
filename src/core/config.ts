@@ -1,47 +1,71 @@
-import { parse as parseToml } from "smol-toml";
-import { z } from "zod";
+import { SecretsEngine } from "@wgtechlabs/secrets-engine";
 
-const ConfigSchema = z.object({
-  copilot: z.object({
-    model: z.string().default("gpt-4.1"),
-    idle_timeout_minutes: z.number().int().positive().default(30),
-  }),
-  channels: z.object({
-    enabled: z.array(z.string()).default([]),
-  }).catchall(z.unknown()),
-});
-
-export type AppConfig = z.infer<typeof ConfigSchema>;
-
-export interface Env {
-  copilotGithubToken: string | undefined;
-  discordBotToken: string | undefined;
+export interface AppSecrets {
+  copilotGithubToken: string;
+  copilotModel: string;
+  copilotIdleTimeoutMinutes: number;
+  channelsEnabled: string[];
   logLevel: string;
-  configPath: string;
-}
-
-export function loadEnv(): Env {
-  return {
-    copilotGithubToken: Bun.env.COPILOT_GITHUB_TOKEN,
-    discordBotToken: Bun.env.DISCORD_BOT_TOKEN,
-    logLevel: Bun.env.LOG_LEVEL ?? "info",
-    configPath: Bun.env.CONFIG_PATH ?? "./config.toml",
+  discord: {
+    botToken: string;
+    allowlist: string[];
   };
 }
 
-export async function loadConfig(path: string): Promise<AppConfig> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) {
-    throw new Error(
-      `Config file not found at ${path}. Copy config.example.toml to config.toml and edit it.`,
-    );
+const SECRET_KEYS = [
+  "copilot.githubToken",
+  "copilot.model",
+  "copilot.idleTimeoutMinutes",
+  "channels.enabled",
+  "log.level",
+  "discord.botToken",
+  "discord.allowlist",
+] as const;
+
+export function buildAppSecrets(raw: Record<string, string | null>): AppSecrets {
+  const copilotGithubToken = raw["copilot.githubToken"];
+  if (!copilotGithubToken) {
+    throw new Error("copilot.githubToken not set. Run `bun run setup`.");
   }
-  const text = await file.text();
-  const raw = parseToml(text);
-  return ConfigSchema.parse(raw);
+
+  const copilotModel = raw["copilot.model"] ?? "gpt-4.1";
+
+  const idleTimeoutMinutes = parseInt(raw["copilot.idleTimeoutMinutes"] ?? "30", 10);
+  if (!Number.isInteger(idleTimeoutMinutes) || idleTimeoutMinutes <= 0) {
+    throw new Error("copilot.idleTimeoutMinutes must be a positive integer");
+  }
+
+  const channelsEnabled = JSON.parse(raw["channels.enabled"] ?? "[]") as string[];
+  const discordAllowlist = JSON.parse(raw["discord.allowlist"] ?? "[]") as string[];
+  const logLevel = raw["log.level"] ?? "info";
+  const discordBotToken = raw["discord.botToken"] ?? "";
+
+  return {
+    copilotGithubToken,
+    copilotModel,
+    copilotIdleTimeoutMinutes: idleTimeoutMinutes,
+    channelsEnabled,
+    logLevel,
+    discord: {
+      botToken: discordBotToken,
+      allowlist: discordAllowlist,
+    },
+  };
 }
 
-export function channelConfig(cfg: AppConfig, name: string): unknown {
-  const section = (cfg.channels as Record<string, unknown>)[name];
-  return section ?? {};
+export async function loadSecrets(): Promise<AppSecrets> {
+  const engine = await SecretsEngine.open();
+  try {
+    const raw: Record<string, string | null> = {};
+    for (const key of SECRET_KEYS) {
+      raw[key] = await engine.get(key);
+    }
+    return buildAppSecrets(raw);
+  } finally {
+    await engine.close();
+  }
+}
+
+export function channelConfig(secrets: AppSecrets, name: string): unknown {
+  return (secrets as unknown as Record<string, unknown>)[name] ?? {};
 }

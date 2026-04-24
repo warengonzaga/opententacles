@@ -1,57 +1,74 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { channelConfig, loadConfig } from "../../src/core/config.ts";
+import { buildAppSecrets, channelConfig } from "../../src/core/config.ts";
 
-function writeTempConfig(body: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "opententacles-cfg-"));
-  const path = join(dir, "config.toml");
-  writeFileSync(path, body);
-  return path;
-}
-
-describe("loadConfig", () => {
-  test("parses a minimal valid config and applies defaults", async () => {
-    const path = writeTempConfig(`
-[copilot]
-
-[channels]
-enabled = ["discord"]
-
-[channels.discord]
-allowlist = ["123"]
-`);
-    const cfg = await loadConfig(path);
-    expect(cfg.copilot.model).toBe("gpt-4.1");
-    expect(cfg.copilot.idle_timeout_minutes).toBe(30);
-    expect(cfg.channels.enabled).toEqual(["discord"]);
-    expect(channelConfig(cfg, "discord")).toEqual({ allowlist: ["123"] });
+describe("buildAppSecrets", () => {
+  test("applies defaults when optional keys are missing", () => {
+    const secrets = buildAppSecrets({ "copilot.githubToken": "tok" });
+    expect(secrets.copilotModel).toBe("gpt-4.1");
+    expect(secrets.copilotIdleTimeoutMinutes).toBe(30);
+    expect(secrets.channelsEnabled).toEqual([]);
+    expect(secrets.discord.allowlist).toEqual([]);
+    expect(secrets.logLevel).toBe("info");
   });
 
-  test("rejects a config with an invalid idle timeout", async () => {
-    const path = writeTempConfig(`
-[copilot]
-idle_timeout_minutes = -5
-
-[channels]
-enabled = []
-`);
-    await expect(loadConfig(path)).rejects.toThrow();
+  test("throws when copilot.githubToken is missing", () => {
+    expect(() => buildAppSecrets({})).toThrow("copilot.githubToken not set");
   });
 
-  test("returns empty object for unknown channel section", async () => {
-    const path = writeTempConfig(`
-[copilot]
-
-[channels]
-enabled = []
-`);
-    const cfg = await loadConfig(path);
-    expect(channelConfig(cfg, "telegram")).toEqual({});
+  test("throws for non-positive idle timeout", () => {
+    expect(() =>
+      buildAppSecrets({ "copilot.githubToken": "tok", "copilot.idleTimeoutMinutes": "-5" }),
+    ).toThrow();
   });
 
-  test("throws a helpful error when the file is missing", async () => {
-    await expect(loadConfig("/nonexistent/does-not-exist.toml")).rejects.toThrow(/not found/);
+  test("throws for non-integer idle timeout", () => {
+    expect(() =>
+      buildAppSecrets({ "copilot.githubToken": "tok", "copilot.idleTimeoutMinutes": "abc" }),
+    ).toThrow();
+  });
+
+  test("parses channels.enabled JSON array", () => {
+    const secrets = buildAppSecrets({
+      "copilot.githubToken": "tok",
+      "channels.enabled": '["discord"]',
+    });
+    expect(secrets.channelsEnabled).toEqual(["discord"]);
+  });
+
+  test("parses discord.allowlist JSON array", () => {
+    const secrets = buildAppSecrets({
+      "copilot.githubToken": "tok",
+      "discord.allowlist": '["123456"]',
+    });
+    expect(secrets.discord.allowlist).toEqual(["123456"]);
+  });
+
+  test("accepts custom model and timeout", () => {
+    const secrets = buildAppSecrets({
+      "copilot.githubToken": "tok",
+      "copilot.model": "gpt-4o",
+      "copilot.idleTimeoutMinutes": "60",
+    });
+    expect(secrets.copilotModel).toBe("gpt-4o");
+    expect(secrets.copilotIdleTimeoutMinutes).toBe(60);
+  });
+});
+
+describe("channelConfig", () => {
+  test("returns channel-specific config object", () => {
+    const secrets = buildAppSecrets({
+      "copilot.githubToken": "tok",
+      "discord.botToken": "bot-tok",
+      "discord.allowlist": '["123"]',
+    });
+    expect(channelConfig(secrets, "discord")).toEqual({
+      botToken: "bot-tok",
+      allowlist: ["123"],
+    });
+  });
+
+  test("returns empty object for unknown channel", () => {
+    const secrets = buildAppSecrets({ "copilot.githubToken": "tok" });
+    expect(channelConfig(secrets, "telegram")).toEqual({});
   });
 });
