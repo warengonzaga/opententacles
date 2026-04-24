@@ -16,6 +16,7 @@ export interface CopilotClientLike {
     model?: string;
     streaming?: boolean;
     onPermissionRequest: unknown;
+    mcpServers?: Record<string, unknown>;
   }): Promise<CopilotSessionLike>;
   stop(): Promise<Error[]>;
 }
@@ -26,6 +27,7 @@ export interface OrchestratorOptions {
   idleTimeoutMs: number;
   sendTimeoutMs?: number;
   permissionHandler: unknown;
+  mcpServers?: Record<string, unknown>;
   logger: Logger;
   now?: () => number;
 }
@@ -40,9 +42,14 @@ export class CopilotOrchestrator {
   private readonly sessions = new Map<string, CachedEntry>();
   private readonly now: () => number;
   private sweeper: ReturnType<typeof setInterval> | null = null;
+  private permissionHandlerFactory?: (userKey: string) => unknown;
 
   constructor(private readonly opts: OrchestratorOptions) {
     this.now = opts.now ?? (() => Date.now());
+  }
+
+  setPermissionHandlerFactory(factory: (userKey: string) => unknown): void {
+    this.permissionHandlerFactory = factory;
   }
 
   start(): void {
@@ -127,10 +134,14 @@ export class CopilotOrchestrator {
     const existing = this.sessions.get(userKey);
     if (existing) return existing;
 
+    const onPermissionRequest =
+      this.permissionHandlerFactory?.(userKey) ?? this.opts.permissionHandler;
+
     const session = await this.opts.client.createSession({
       model: this.opts.model,
       streaming: true,
-      onPermissionRequest: this.opts.permissionHandler,
+      onPermissionRequest,
+      ...(this.opts.mcpServers ? { mcpServers: this.opts.mcpServers } : {}),
     });
     const entry: CachedEntry = {
       session,
