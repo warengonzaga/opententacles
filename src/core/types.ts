@@ -1,4 +1,4 @@
-import type { Logger } from "pino";
+import type { Logger } from "./logger.ts";
 import type { CopilotOrchestrator } from "./copilot.ts";
 
 export interface ChannelContext {

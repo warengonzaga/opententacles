@@ -1,4 +1,4 @@
-import type { Logger } from "pino";
+import type { Logger } from "./logger.ts";
 import type { StreamHandler } from "./types.ts";
 
 export interface CopilotSessionLike {
@@ -17,6 +17,8 @@ export interface CopilotClientLike {
     streaming?: boolean;
     onPermissionRequest: unknown;
     mcpServers?: Record<string, unknown>;
+    workingDirectory?: string;
+    systemMessage?: string;
   }): Promise<CopilotSessionLike>;
   stop(): Promise<Error[]>;
 }
@@ -28,6 +30,8 @@ export interface OrchestratorOptions {
   sendTimeoutMs?: number;
   permissionHandler: unknown;
   mcpServers?: Record<string, unknown>;
+  workingDirectory?: string;
+  systemMessage?: string;
   logger: Logger;
   now?: () => number;
 }
@@ -142,6 +146,8 @@ export class CopilotOrchestrator {
       streaming: true,
       onPermissionRequest,
       ...(this.opts.mcpServers ? { mcpServers: this.opts.mcpServers } : {}),
+      ...(this.opts.workingDirectory ? { workingDirectory: this.opts.workingDirectory } : {}),
+      ...(this.opts.systemMessage ? { systemMessage: this.opts.systemMessage } : {}),
     });
     const entry: CachedEntry = {
       session,

@@ -1,4 +1,4 @@
-import type { Logger } from "pino";
+import type { Logger } from "./logger.ts";
 
 const GH_TOKEN_TIMEOUT_MS = 5_000;
 

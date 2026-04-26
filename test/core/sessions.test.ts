@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import pino from "pino";
+import { createSilentLogger } from "../../src/core/logger.ts";
 import {
   CopilotOrchestrator,
   type CopilotClientLike,
@@ -7,7 +7,7 @@ import {
   type OrchestratorOptions,
 } from "../../src/core/copilot.ts";
 
-const silentLogger = pino({ level: "silent" });
+const silentLogger = createSilentLogger();
 
 class FakeSession implements CopilotSessionLike {
   public deltaHandlers: Array<(e: { data: { deltaContent: string } }) => void> = [];
