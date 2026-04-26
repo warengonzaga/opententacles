@@ -1,26 +1,50 @@
+import { mkdirSync } from "node:fs";
 import { approveAll, CopilotClient } from "@github/copilot-sdk";
-import { channelConfig, loadSecrets, type AppSecrets } from "./core/config.ts";
+import { channelConfig, loadConfig, type AppConfig, type AppSecrets } from "./core/config.ts";
 import { CopilotOrchestrator, type CopilotClientLike } from "./core/copilot.ts";
 import { openDb } from "./core/db.ts";
 import { resolveGhToken } from "./core/gh.ts";
 import { createLogger } from "./core/logger.ts";
+import { resolveWorkspaceDir } from "./core/paths.ts";
 import type { Channel } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
+function buildSystemMessage(workspaceDir: string, owners: string[]): string {
+  const ownerList = owners.length > 0 ? owners.map((o) => `"${o}"`).join(", ") : "(none configured)";
+  return [
+    "You are running inside OpenTentacles — a framework that exposes GitHub Copilot through chat apps.",
+    "",
+    `Your working directory is the workspace root: ${workspaceDir}`,
+    "Everything you do (clone, read, edit, run) MUST stay inside that directory.",
+    "",
+    "Repository layout convention — when you clone a git repo, place it at:",
+    `  - ./<owner>/<name>/            if the owner is in this list: ${ownerList}`,
+    "  - ./contribution/<owner>/<name>/   otherwise",
+    "",
+    "Before cloning, check whether the target path already exists and prefer `git fetch` / `git pull` on the existing clone.",
+    "Never write files outside the workspace root.",
+  ].join("\n");
+}
+
 async function main(): Promise<void> {
-  let secrets: AppSecrets;
+  let loaded: Awaited<ReturnType<typeof loadConfig>>;
   try {
-    secrets = await loadSecrets();
+    loaded = await loadConfig();
   } catch (err) {
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   }
+  const { config, secrets, close: closeConfig } = loaded;
 
-  const logger = createLogger(secrets.logLevel);
+  const logger = createLogger({ level: config.log.level, format: config.log.format });
   logger.info(
-    { channels: secrets.channelsEnabled, model: secrets.copilotModel },
+    { channels: config.channels.enabled, model: config.copilot.model },
     "opententacles starting",
   );
+
+  const workspaceDir = resolveWorkspaceDir();
+  mkdirSync(workspaceDir, { recursive: true });
+  logger.info({ workspaceDir }, "workspace ready");
 
   openDb();
 
@@ -41,19 +65,23 @@ async function main(): Promise<void> {
     );
   }
 
+  const systemMessage = buildSystemMessage(workspaceDir, config.github.owners);
+
   const client = new CopilotClient() as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
     client,
-    model: secrets.copilotModel,
-    idleTimeoutMs: secrets.copilotIdleTimeoutMinutes * 60_000,
+    model: config.copilot.model,
+    idleTimeoutMs: config.copilot.idleTimeoutMinutes * 60_000,
     permissionHandler: approveAll,
     mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
+    workingDirectory: workspaceDir,
+    systemMessage,
     logger: logger.child({ component: "copilot" }),
   });
   orchestrator.start();
 
   const channels = await discoverChannels({
-    enabled: secrets.channelsEnabled,
+    enabled: config.channels.enabled,
     logger: logger.child({ component: "registry" }),
   });
 
@@ -64,7 +92,7 @@ async function main(): Promise<void> {
       await channel.start({
         copilot: orchestrator,
         logger: childLogger,
-        config: channelConfig(secrets, channel.name),
+        config: channelConfig(config, secrets, channel.name),
       });
       started.push(channel);
       childLogger.info("channel started");
@@ -88,6 +116,11 @@ async function main(): Promise<void> {
     } catch (err) {
       logger.warn({ err }, "orchestrator stop failed");
     }
+    try {
+      await closeConfig();
+    } catch (err) {
+      logger.warn({ err }, "config close failed");
+    }
     process.exit(0);
   };
 
@@ -99,3 +132,6 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+// Preserve type re-exports in case other modules import them via this entry.
+export type { AppConfig, AppSecrets };
