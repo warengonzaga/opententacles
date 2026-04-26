@@ -1,47 +1,102 @@
-import { parse as parseToml } from "smol-toml";
+import { mkdirSync } from "node:fs";
+import { ConfigEngine } from "@wgtechlabs/config-engine";
+import { SecretsEngine } from "@wgtechlabs/secrets-engine";
 import { z } from "zod";
+import { resolveConfigDir } from "./paths.ts";
 
-const ConfigSchema = z.object({
+/**
+ * Non-secret configuration — stored by `@wgtechlabs/config-engine` in a SQLite
+ * file under `<dataDir>/data/config.db`. These values are safe to keep in
+ * plaintext on the host.
+ */
+export const ConfigSchema = z.object({
   copilot: z.object({
-    model: z.string().default("gpt-4.1"),
-    idle_timeout_minutes: z.number().int().positive().default(30),
+    model: z.string(),
+    idleTimeoutMinutes: z.number().int().positive(),
   }),
   channels: z.object({
-    enabled: z.array(z.string()).default([]),
-  }).catchall(z.unknown()),
+    enabled: z.array(z.string()),
+  }),
+  discord: z.object({
+    allowlist: z.array(z.string()),
+  }),
+  log: z.object({
+    level: z.enum(["debug", "info", "warn", "error", "silent"]),
+    format: z.enum(["text", "json"]),
+  }),
+  github: z.object({
+    owners: z.array(z.string()),
+  }),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
-export interface Env {
-  copilotGithubToken: string | undefined;
-  discordBotToken: string | undefined;
-  logLevel: string;
-  configPath: string;
+/** Every secret key OpenTentacles stores in `@wgtechlabs/secrets-engine`. */
+export const SECRET_KEYS = ["discord.botToken"] as const;
+
+export const CONFIG_DEFAULTS: AppConfig = {
+  copilot: { model: "gpt-4.1", idleTimeoutMinutes: 30 },
+  channels: { enabled: ["discord"] },
+  discord: { allowlist: [] },
+  log: { level: "info", format: "text" },
+  github: { owners: [] },
+};
+
+/**
+ * Secrets — stored encrypted by `@wgtechlabs/secrets-engine`. Only things that
+ * would cause real harm if leaked go here.
+ */
+export interface AppSecrets {
+  discord: { botToken: string };
 }
 
-export function loadEnv(): Env {
+export interface LoadedConfig {
+  config: AppConfig;
+  secrets: AppSecrets;
+  close(): Promise<void>;
+}
+
+export async function loadConfig(): Promise<LoadedConfig> {
+  const configDir = resolveConfigDir();
+  mkdirSync(configDir, { recursive: true });
+
+  const engine = await ConfigEngine.open<AppConfig>({
+    projectName: "opententacles",
+    cwd: configDir,
+    defaults: CONFIG_DEFAULTS,
+    schema: ConfigSchema,
+  });
+
+  const secrets = await SecretsEngine.open();
+  const discordBotToken = (await secrets.get("discord.botToken")) ?? "";
+
+  // Merge engine store onto defaults to fill any keys not yet persisted.
+  const merged: AppConfig = {
+    ...CONFIG_DEFAULTS,
+    ...(engine.store as Partial<AppConfig>),
+  };
+  const config = ConfigSchema.parse(merged);
+
   return {
-    copilotGithubToken: Bun.env.COPILOT_GITHUB_TOKEN,
-    discordBotToken: Bun.env.DISCORD_BOT_TOKEN,
-    logLevel: Bun.env.LOG_LEVEL ?? "info",
-    configPath: Bun.env.CONFIG_PATH ?? "./config.toml",
+    config,
+    secrets: { discord: { botToken: discordBotToken } },
+    close: async () => {
+      engine.close();
+      await secrets.close();
+    },
   };
 }
 
-export async function loadConfig(path: string): Promise<AppConfig> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) {
-    throw new Error(
-      `Config file not found at ${path}. Copy config.example.toml to config.toml and edit it.`,
-    );
+export function channelConfig(
+  config: AppConfig,
+  secrets: AppSecrets,
+  name: string,
+): unknown {
+  if (name === "discord") {
+    return {
+      botToken: secrets.discord.botToken,
+      allowlist: config.discord.allowlist,
+    };
   }
-  const text = await file.text();
-  const raw = parseToml(text);
-  return ConfigSchema.parse(raw);
-}
-
-export function channelConfig(cfg: AppConfig, name: string): unknown {
-  const section = (cfg.channels as Record<string, unknown>)[name];
-  return section ?? {};
+  return {};
 }

@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { Logger } from "pino";
+import type { Logger } from "./core/logger.ts";
 import type { Channel } from "./core/types.ts";
 
 export interface DiscoveryOptions {

@@ -1,34 +1,81 @@
+import { mkdirSync } from "node:fs";
 import { approveAll, CopilotClient } from "@github/copilot-sdk";
-import { channelConfig, loadConfig, loadEnv } from "./core/config.ts";
+import { channelConfig, loadConfig, type AppConfig, type AppSecrets } from "./core/config.ts";
 import { CopilotOrchestrator, type CopilotClientLike } from "./core/copilot.ts";
 import { openDb } from "./core/db.ts";
+import { resolveGhToken } from "./core/gh.ts";
 import { createLogger } from "./core/logger.ts";
+import { resolveWorkspaceDir } from "./core/paths.ts";
 import type { Channel } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
-async function main(): Promise<void> {
-  const env = loadEnv();
-  const logger = createLogger(env.logLevel);
+function buildSystemMessage(workspaceDir: string, owners: string[]): string {
+  const ownerList = owners.length > 0 ? owners.map((o) => `"${o}"`).join(", ") : "(none configured)";
+  return [
+    "You are running inside OpenTentacles — a framework that exposes GitHub Copilot through chat apps.",
+    "",
+    `Your working directory is the workspace root: ${workspaceDir}`,
+    "Everything you do (clone, read, edit, run) MUST stay inside that directory.",
+    "",
+    "Repository layout convention — when you clone a git repo, place it at:",
+    `  - ./<owner>/<name>/            if the owner is in this list: ${ownerList}`,
+    "  - ./contribution/<owner>/<name>/   otherwise",
+    "",
+    "Before cloning, check whether the target path already exists and prefer `git fetch` / `git pull` on the existing clone.",
+    "Never write files outside the workspace root.",
+  ].join("\n");
+}
 
-  if (!env.copilotGithubToken) {
-    logger.error("COPILOT_GITHUB_TOKEN is not set. See .env.example.");
+async function main(): Promise<void> {
+  let loaded: Awaited<ReturnType<typeof loadConfig>>;
+  try {
+    loaded = await loadConfig();
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   }
+  const { config, secrets, close: closeConfig } = loaded;
 
-  const config = await loadConfig(env.configPath);
+  const logger = createLogger({ level: config.log.level, format: config.log.format });
   logger.info(
     { channels: config.channels.enabled, model: config.copilot.model },
     "opententacles starting",
   );
 
+  const workspaceDir = resolveWorkspaceDir();
+  mkdirSync(workspaceDir, { recursive: true });
+  logger.info({ workspaceDir }, "workspace ready");
+
   openDb();
+
+  const ghLogger = logger.child({ component: "gh" });
+  const ghToken = await resolveGhToken(ghLogger);
+  const mcpServers: Record<string, unknown> = {};
+  if (ghToken) {
+    mcpServers.github = {
+      type: "http",
+      url: "https://api.githubcopilot.com/mcp/",
+      headers: { Authorization: `Bearer ${ghToken}` },
+      tools: ["*"],
+    };
+    logger.info("GitHub MCP enabled via gh CLI token");
+  } else {
+    logger.warn(
+      "GitHub MCP disabled — install GitHub CLI and run `gh auth login`",
+    );
+  }
+
+  const systemMessage = buildSystemMessage(workspaceDir, config.github.owners);
 
   const client = new CopilotClient() as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
     client,
     model: config.copilot.model,
-    idleTimeoutMs: config.copilot.idle_timeout_minutes * 60_000,
+    idleTimeoutMs: config.copilot.idleTimeoutMinutes * 60_000,
     permissionHandler: approveAll,
+    mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
+    workingDirectory: workspaceDir,
+    systemMessage,
     logger: logger.child({ component: "copilot" }),
   });
   orchestrator.start();
@@ -45,7 +92,7 @@ async function main(): Promise<void> {
       await channel.start({
         copilot: orchestrator,
         logger: childLogger,
-        config: channelConfig(config, channel.name),
+        config: channelConfig(config, secrets, channel.name),
       });
       started.push(channel);
       childLogger.info("channel started");
@@ -69,6 +116,11 @@ async function main(): Promise<void> {
     } catch (err) {
       logger.warn({ err }, "orchestrator stop failed");
     }
+    try {
+      await closeConfig();
+    } catch (err) {
+      logger.warn({ err }, "config close failed");
+    }
     process.exit(0);
   };
 
@@ -80,3 +132,6 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+// Preserve type re-exports in case other modules import them via this entry.
+export type { AppConfig, AppSecrets };
