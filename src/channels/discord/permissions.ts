@@ -1,9 +1,17 @@
-import type { Logger } from "pino";
+import type { Logger } from "../../core/logger.ts";
 
 const PERMISSION_TIMEOUT_MS = 2 * 60_000;
 
 export interface PermissionRequest {
-  kind: "shell" | "write" | "mcp" | "read" | "url" | "custom-tool" | string;
+  kind:
+    | "shell"
+    | "write"
+    | "mcp"
+    | "read"
+    | "url"
+    | "custom-tool"
+    | "memory"
+    | string;
   toolCallId?: string;
   [key: string]: unknown;
 }
@@ -219,16 +227,29 @@ export interface RawInteraction {
 
 function formatRequest(req: PermissionRequest): string {
   const lines: string[] = [`⚠️ **Copilot needs permission** (\`${req.kind}\`)`];
+  const intention = str(req.intention);
+  if (intention) lines.push(`\n**Why:** ${trimTo(intention, 400)}`);
+
   switch (req.kind) {
     case "shell": {
-      const cmd = str(req.command);
-      if (cmd) lines.push(`\n\`\`\`\n${trimTo(cmd, 1500)}\n\`\`\``);
+      const cmd = str(req.fullCommandText);
+      if (cmd) lines.push(`\n**Command:**\n\`\`\`bash\n${trimTo(cmd, 1200)}\n\`\`\``);
+      const warning = str(req.warning);
+      if (warning) lines.push(`\n⚠️ ${trimTo(warning, 300)}`);
+      const redirect = req.hasWriteFileRedirection === true;
+      if (redirect) lines.push(`\n_(writes to a file via redirection)_`);
       break;
     }
-    case "write":
+    case "write": {
+      const file = str(req.fileName);
+      if (file) lines.push(`\n**File:** \`${trimTo(file, 300)}\``);
+      const diff = str(req.diff);
+      if (diff) lines.push(`\n**Diff:**\n\`\`\`diff\n${trimTo(diff, 1200)}\n\`\`\``);
+      break;
+    }
     case "read": {
-      const path = str(req.path) ?? str(req.file);
-      if (path) lines.push(`\n**Path:** \`${trimTo(path, 200)}\``);
+      const path = str(req.path);
+      if (path) lines.push(`\n**Path:** \`${trimTo(path, 300)}\``);
       break;
     }
     case "url": {
@@ -237,22 +258,36 @@ function formatRequest(req: PermissionRequest): string {
       break;
     }
     case "mcp": {
-      const server = str(req.serverName) ?? str(req.server);
-      const tool = str(req.toolName) ?? str(req.tool);
-      if (server || tool) lines.push(`\n**Tool:** \`${server ?? "?"} / ${tool ?? "?"}\``);
+      const server = str(req.serverName);
+      const tool = str(req.toolTitle) ?? str(req.toolName);
+      const readOnly = req.readOnly === true;
+      if (server || tool) {
+        lines.push(
+          `\n**Tool:** \`${server ?? "?"} / ${tool ?? "?"}\`${readOnly ? " _(read-only)_" : ""}`,
+        );
+      }
       if (req.args !== undefined) {
         const json = safeJson(req.args);
-        if (json) lines.push(`\n\`\`\`json\n${trimTo(json, 1200)}\n\`\`\``);
+        if (json) lines.push(`\n**Args:**\n\`\`\`json\n${trimTo(json, 1000)}\n\`\`\``);
       }
       break;
     }
     case "custom-tool": {
-      const tool = str(req.toolName) ?? str(req.tool);
+      const tool = str(req.toolName);
+      const desc = str(req.toolDescription);
       if (tool) lines.push(`\n**Tool:** \`${tool}\``);
+      if (desc) lines.push(`\n**Description:** ${trimTo(desc, 400)}`);
       if (req.args !== undefined) {
         const json = safeJson(req.args);
-        if (json) lines.push(`\n\`\`\`json\n${trimTo(json, 1200)}\n\`\`\``);
+        if (json) lines.push(`\n**Args:**\n\`\`\`json\n${trimTo(json, 1000)}\n\`\`\``);
       }
+      break;
+    }
+    case "memory": {
+      const subject = str(req.subject);
+      const fact = str(req.fact);
+      if (subject) lines.push(`\n**Subject:** ${trimTo(subject, 200)}`);
+      if (fact) lines.push(`\n**Fact:** ${trimTo(fact, 600)}`);
       break;
     }
   }
