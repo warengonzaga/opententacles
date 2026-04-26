@@ -1,63 +1,102 @@
+import { mkdirSync } from "node:fs";
+import { ConfigEngine } from "@wgtechlabs/config-engine";
 import { SecretsEngine } from "@wgtechlabs/secrets-engine";
+import { z } from "zod";
+import { resolveConfigDir } from "./paths.ts";
 
+/**
+ * Non-secret configuration — stored by `@wgtechlabs/config-engine` in a SQLite
+ * file under `<dataDir>/data/config.db`. These values are safe to keep in
+ * plaintext on the host.
+ */
+export const ConfigSchema = z.object({
+  copilot: z.object({
+    model: z.string(),
+    idleTimeoutMinutes: z.number().int().positive(),
+  }),
+  channels: z.object({
+    enabled: z.array(z.string()),
+  }),
+  discord: z.object({
+    allowlist: z.array(z.string()),
+  }),
+  log: z.object({
+    level: z.enum(["debug", "info", "warn", "error", "silent"]),
+    format: z.enum(["text", "json"]),
+  }),
+  github: z.object({
+    owners: z.array(z.string()),
+  }),
+});
+
+export type AppConfig = z.infer<typeof ConfigSchema>;
+
+/** Every secret key OpenTentacles stores in `@wgtechlabs/secrets-engine`. */
+export const SECRET_KEYS = ["discord.botToken"] as const;
+
+export const CONFIG_DEFAULTS: AppConfig = {
+  copilot: { model: "gpt-4.1", idleTimeoutMinutes: 30 },
+  channels: { enabled: ["discord"] },
+  discord: { allowlist: [] },
+  log: { level: "info", format: "text" },
+  github: { owners: [] },
+};
+
+/**
+ * Secrets — stored encrypted by `@wgtechlabs/secrets-engine`. Only things that
+ * would cause real harm if leaked go here.
+ */
 export interface AppSecrets {
-  copilotModel: string;
-  copilotIdleTimeoutMinutes: number;
-  channelsEnabled: string[];
-  logLevel: string;
-  discord: {
-    botToken: string;
-    allowlist: string[];
-  };
+  discord: { botToken: string };
 }
 
-const SECRET_KEYS = [
-  "copilot.model",
-  "copilot.idleTimeoutMinutes",
-  "channels.enabled",
-  "log.level",
-  "discord.botToken",
-  "discord.allowlist",
-] as const;
+export interface LoadedConfig {
+  config: AppConfig;
+  secrets: AppSecrets;
+  close(): Promise<void>;
+}
 
-export function buildAppSecrets(raw: Record<string, string | null>): AppSecrets {
-  const copilotModel = raw["copilot.model"] ?? "gpt-4.1";
+export async function loadConfig(): Promise<LoadedConfig> {
+  const configDir = resolveConfigDir();
+  mkdirSync(configDir, { recursive: true });
 
-  const idleTimeoutMinutes = parseInt(raw["copilot.idleTimeoutMinutes"] ?? "30", 10);
-  if (!Number.isInteger(idleTimeoutMinutes) || idleTimeoutMinutes <= 0) {
-    throw new Error("copilot.idleTimeoutMinutes must be a positive integer");
-  }
+  const engine = await ConfigEngine.open<AppConfig>({
+    projectName: "opententacles",
+    cwd: configDir,
+    defaults: CONFIG_DEFAULTS,
+    schema: ConfigSchema,
+  });
 
-  const channelsEnabled = JSON.parse(raw["channels.enabled"] ?? "[]") as string[];
-  const discordAllowlist = JSON.parse(raw["discord.allowlist"] ?? "[]") as string[];
-  const logLevel = raw["log.level"] ?? "info";
-  const discordBotToken = raw["discord.botToken"] ?? "";
+  const secrets = await SecretsEngine.open();
+  const discordBotToken = (await secrets.get("discord.botToken")) ?? "";
+
+  // Merge engine store onto defaults to fill any keys not yet persisted.
+  const merged: AppConfig = {
+    ...CONFIG_DEFAULTS,
+    ...(engine.store as Partial<AppConfig>),
+  };
+  const config = ConfigSchema.parse(merged);
 
   return {
-    copilotModel,
-    copilotIdleTimeoutMinutes: idleTimeoutMinutes,
-    channelsEnabled,
-    logLevel,
-    discord: {
-      botToken: discordBotToken,
-      allowlist: discordAllowlist,
+    config,
+    secrets: { discord: { botToken: discordBotToken } },
+    close: async () => {
+      engine.close();
+      await secrets.close();
     },
   };
 }
 
-export async function loadSecrets(): Promise<AppSecrets> {
-  const engine = await SecretsEngine.open();
-  try {
-    const raw: Record<string, string | null> = {};
-    for (const key of SECRET_KEYS) {
-      raw[key] = await engine.get(key);
-    }
-    return buildAppSecrets(raw);
-  } finally {
-    await engine.close();
+export function channelConfig(
+  config: AppConfig,
+  secrets: AppSecrets,
+  name: string,
+): unknown {
+  if (name === "discord") {
+    return {
+      botToken: secrets.discord.botToken,
+      allowlist: config.discord.allowlist,
+    };
   }
-}
-
-export function channelConfig(secrets: AppSecrets, name: string): unknown {
-  return (secrets as unknown as Record<string, unknown>)[name] ?? {};
+  return {};
 }

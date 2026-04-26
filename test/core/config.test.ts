@@ -1,62 +1,72 @@
 import { describe, expect, test } from "bun:test";
-import { buildAppSecrets, channelConfig } from "../../src/core/config.ts";
+import { CONFIG_DEFAULTS, ConfigSchema, channelConfig, type AppConfig, type AppSecrets } from "../../src/core/config.ts";
 
-describe("buildAppSecrets", () => {
-  test("applies defaults when optional keys are missing", () => {
-    const secrets = buildAppSecrets({});
-    expect(secrets.copilotModel).toBe("gpt-4.1");
-    expect(secrets.copilotIdleTimeoutMinutes).toBe(30);
-    expect(secrets.channelsEnabled).toEqual([]);
-    expect(secrets.discord.allowlist).toEqual([]);
-    expect(secrets.logLevel).toBe("info");
+describe("ConfigSchema + CONFIG_DEFAULTS", () => {
+  test("CONFIG_DEFAULTS is valid against the schema", () => {
+    const cfg = ConfigSchema.parse(CONFIG_DEFAULTS);
+    expect(cfg.copilot.model).toBe("gpt-4.1");
+    expect(cfg.copilot.idleTimeoutMinutes).toBe(30);
+    expect(cfg.channels.enabled).toEqual(["discord"]);
+    expect(cfg.discord.allowlist).toEqual([]);
+    expect(cfg.log.level).toBe("info");
+    expect(cfg.log.format).toBe("text");
+    expect(cfg.github.owners).toEqual([]);
   });
 
-  test("throws for non-positive idle timeout", () => {
+  test("rejects non-positive idle timeout", () => {
     expect(() =>
-      buildAppSecrets({ "copilot.idleTimeoutMinutes": "-5" }),
+      ConfigSchema.parse({ ...CONFIG_DEFAULTS, copilot: { model: "x", idleTimeoutMinutes: -5 } }),
     ).toThrow();
   });
 
-  test("throws for non-integer idle timeout", () => {
+  test("rejects non-integer idle timeout", () => {
     expect(() =>
-      buildAppSecrets({ "copilot.idleTimeoutMinutes": "abc" }),
+      ConfigSchema.parse({ ...CONFIG_DEFAULTS, copilot: { model: "x", idleTimeoutMinutes: 1.5 } }),
     ).toThrow();
   });
 
-  test("parses channels.enabled JSON array", () => {
-    const secrets = buildAppSecrets({ "channels.enabled": '["discord"]' });
-    expect(secrets.channelsEnabled).toEqual(["discord"]);
+  test("rejects unknown log level", () => {
+    expect(() =>
+      ConfigSchema.parse({
+        ...CONFIG_DEFAULTS,
+        log: { level: "trace" as unknown as "info", format: "text" },
+      }),
+    ).toThrow();
   });
 
-  test("parses discord.allowlist JSON array", () => {
-    const secrets = buildAppSecrets({ "discord.allowlist": '["123456"]' });
-    expect(secrets.discord.allowlist).toEqual(["123456"]);
-  });
-
-  test("accepts custom model and timeout", () => {
-    const secrets = buildAppSecrets({
-      "copilot.model": "gpt-4o",
-      "copilot.idleTimeoutMinutes": "60",
+  test("accepts custom values", () => {
+    const cfg: AppConfig = ConfigSchema.parse({
+      copilot: { model: "gpt-4o", idleTimeoutMinutes: 60 },
+      channels: { enabled: ["discord", "telegram"] },
+      discord: { allowlist: ["123"] },
+      log: { level: "debug", format: "json" },
+      github: { owners: ["warengonzaga"] },
     });
-    expect(secrets.copilotModel).toBe("gpt-4o");
-    expect(secrets.copilotIdleTimeoutMinutes).toBe(60);
+    expect(cfg.copilot.model).toBe("gpt-4o");
+    expect(cfg.copilot.idleTimeoutMinutes).toBe(60);
+    expect(cfg.channels.enabled).toEqual(["discord", "telegram"]);
+    expect(cfg.discord.allowlist).toEqual(["123"]);
+    expect(cfg.log.level).toBe("debug");
+    expect(cfg.log.format).toBe("json");
+    expect(cfg.github.owners).toEqual(["warengonzaga"]);
   });
 });
 
 describe("channelConfig", () => {
-  test("returns channel-specific config object", () => {
-    const secrets = buildAppSecrets({
-      "discord.botToken": "bot-tok",
-      "discord.allowlist": '["123"]',
-    });
-    expect(channelConfig(secrets, "discord")).toEqual({
+  const config: AppConfig = {
+    ...CONFIG_DEFAULTS,
+    discord: { allowlist: ["123"] },
+  };
+  const secrets: AppSecrets = { discord: { botToken: "bot-tok" } };
+
+  test("returns discord channel config from merged stores", () => {
+    expect(channelConfig(config, secrets, "discord")).toEqual({
       botToken: "bot-tok",
       allowlist: ["123"],
     });
   });
 
   test("returns empty object for unknown channel", () => {
-    const secrets = buildAppSecrets({});
-    expect(channelConfig(secrets, "telegram")).toEqual({});
+    expect(channelConfig(config, secrets, "telegram")).toEqual({});
   });
 });
