@@ -37,7 +37,12 @@ export class MemoryStore {
     private readonly maxTurns = MAX_TURNS_DEFAULT,
   ) {}
 
-  appendTurn(ownerId: string, channel: string, role: "user" | "assistant", content: string): void {
+  appendTurn(
+    ownerId: string,
+    channel: string,
+    role: "user" | "assistant",
+    content: string,
+  ): void {
     const createdAt = Date.now();
     this.db.run(
       "INSERT INTO conversation_turns (owner_id, channel, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -74,12 +79,14 @@ export class MemoryStore {
 
     return rows.reverse().flatMap((r) => {
       if (!isValidRole(r.role)) return [];
-      return [{
-        role: r.role,
-        content: r.content,
-        channel: r.channel,
-        createdAt: r.created_at,
-      }];
+      return [
+        {
+          role: r.role,
+          content: r.content,
+          channel: r.channel,
+          createdAt: r.created_at,
+        },
+      ];
     });
   }
 
@@ -91,7 +98,9 @@ export class MemoryStore {
     if (turns.length === 0) return "";
     return [
       "--- Previous conversation history (for context) ---",
-      JSON.stringify({ turns: turns.map((t) => ({ role: t.role, content: t.content })) }),
+      JSON.stringify({
+        turns: turns.map((t) => ({ role: t.role, content: t.content })),
+      }),
       "--- End of history ---",
     ].join("\n");
   }
