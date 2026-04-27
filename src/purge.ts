@@ -106,7 +106,9 @@ export async function purgeCommand(argv: string[]): Promise<void> {
 
   p.intro("Open Tentacles — purge");
 
-  const targetLines = [`• ${dataDir}${dataExists ? "" : "  (not present — will be skipped)"}`];
+  const targetLines = [
+    `• ${dataDir}${dataExists ? "" : "  (not present — will be skipped)"}`,
+  ];
   if (flags.keepSecrets) {
     targetLines.push("• secret keys will be KEPT (--keep-secrets)");
   } else {
@@ -120,7 +122,8 @@ export async function purgeCommand(argv: string[]): Promise<void> {
     const answer = await p.text({
       message: `Type "${CONFIRM_PHRASE}" to confirm:`,
       validate: (v) => {
-        if (!v || v.toLowerCase() !== CONFIRM_PHRASE) return `Type exactly: ${CONFIRM_PHRASE}`;
+        if (!v || v.toLowerCase() !== CONFIRM_PHRASE)
+          return `Type exactly: ${CONFIRM_PHRASE}`;
       },
     });
     if (p.isCancel(answer)) {
@@ -155,5 +158,3 @@ export async function purgeCommand(argv: string[]): Promise<void> {
     p.outro("Run `opententacles setup` when you're ready to reconfigure.");
   }
 }
-
-
