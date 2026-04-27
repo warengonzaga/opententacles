@@ -77,7 +77,8 @@ function readEnvOverrides(): {
   const logLevel = Bun.env.OPENTENTACLES_LOG_LEVEL;
   if (logLevel) {
     const parsed = ConfigSchema.shape.log.shape.level.safeParse(logLevel);
-    if (parsed.success) overrides.log = { ...CONFIG_DEFAULTS.log, level: parsed.data };
+    if (parsed.success)
+      overrides.log = { ...CONFIG_DEFAULTS.log, level: parsed.data };
   }
 
   const discordOwnerId = Bun.env.DISCORD_OWNER_ID;
@@ -88,7 +89,10 @@ function readEnvOverrides(): {
   const namespacesRaw = Bun.env.GITHUB_NAMESPACES;
   if (namespacesRaw) {
     overrides.github = {
-      namespaces: namespacesRaw.split(",").map((s) => s.trim()).filter(Boolean),
+      namespaces: namespacesRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
     };
   }
 
@@ -156,7 +160,7 @@ export async function loadConfig(): Promise<LoadedConfig> {
     engine.close();
     throw new Error(
       "Discord bot token is set but no owner ID is configured.\n" +
-      "Set DISCORD_OWNER_ID (env) or run `opententacles setup` to register an owner.",
+        "Set DISCORD_OWNER_ID (env) or run `opententacles setup` to register an owner.",
     );
   }
 
@@ -171,7 +175,7 @@ export async function loadConfig(): Promise<LoadedConfig> {
 }
 
 export function channelConfig(
-  config: AppConfig,
+  _config: AppConfig,
   secrets: AppSecrets,
   name: string,
 ): unknown {
@@ -186,7 +190,10 @@ export function channelConfig(
  * is registered (unrestricted). The framework uses this to populate
  * `ChannelContext.registeredUserId` so channels don't parse config themselves.
  */
-export function resolveRegisteredUser(config: AppConfig, channelName: string): string | null {
+export function resolveRegisteredUser(
+  config: AppConfig,
+  channelName: string,
+): string | null {
   if (channelName === "discord") return config.discord.registeredOwner ?? null;
   return null;
 }

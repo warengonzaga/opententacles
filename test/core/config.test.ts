@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { CONFIG_DEFAULTS, ConfigSchema, channelConfig, type AppConfig, type AppSecrets } from "../../src/core/config.ts";
+import {
+  type AppConfig,
+  type AppSecrets,
+  CONFIG_DEFAULTS,
+  ConfigSchema,
+  channelConfig,
+} from "../../src/core/config.ts";
 
 describe("ConfigSchema + CONFIG_DEFAULTS", () => {
   test("CONFIG_DEFAULTS is valid against the schema", () => {
@@ -15,13 +21,19 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
 
   test("rejects non-positive idle timeout", () => {
     expect(() =>
-      ConfigSchema.parse({ ...CONFIG_DEFAULTS, copilot: { model: "x", idleTimeoutMinutes: -5 } }),
+      ConfigSchema.parse({
+        ...CONFIG_DEFAULTS,
+        copilot: { model: "x", idleTimeoutMinutes: -5 },
+      }),
     ).toThrow();
   });
 
   test("rejects non-integer idle timeout", () => {
     expect(() =>
-      ConfigSchema.parse({ ...CONFIG_DEFAULTS, copilot: { model: "x", idleTimeoutMinutes: 1.5 } }),
+      ConfigSchema.parse({
+        ...CONFIG_DEFAULTS,
+        copilot: { model: "x", idleTimeoutMinutes: 1.5 },
+      }),
     ).toThrow();
   });
 
