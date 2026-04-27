@@ -3,6 +3,14 @@ import type { Logger } from "./logger.ts";
 const GH_TOKEN_TIMEOUT_MS = 5_000;
 
 export async function resolveGhToken(logger: Logger): Promise<string | null> {
+  // Prefer explicit env vars (Railway, Docker, CI) over invoking `gh`. This
+  // matches what `gh` itself does and lets us run without the binary present.
+  const envToken = (Bun.env.GH_TOKEN ?? Bun.env.GITHUB_TOKEN ?? "").trim();
+  if (envToken) {
+    logger.debug("using token from GH_TOKEN/GITHUB_TOKEN env");
+    return envToken;
+  }
+
   try {
     const proc = Bun.spawn(["gh", "auth", "token"], {
       stdout: "pipe",
@@ -31,7 +39,7 @@ export async function resolveGhToken(logger: Logger): Promise<string | null> {
   } catch (err) {
     logger.warn(
       { err },
-      "could not invoke `gh`; install GitHub CLI to enable GitHub MCP",
+      "could not invoke `gh`; set GH_TOKEN env or install GitHub CLI",
     );
     return null;
   }

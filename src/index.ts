@@ -81,7 +81,7 @@ async function main(): Promise<void> {
     logger.info("GitHub MCP enabled via gh CLI token");
   } else {
     logger.warn(
-      "GitHub MCP disabled — install GitHub CLI and run `gh auth login`",
+      "GitHub MCP disabled — set GH_TOKEN env or run `gh auth login`",
     );
   }
 
@@ -90,7 +90,9 @@ async function main(): Promise<void> {
     config.github.namespaces,
   );
 
-  const client = new CopilotClient() as unknown as CopilotClientLike;
+  const client = new CopilotClient(
+    ghToken ? { githubToken: ghToken } : {},
+  ) as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
     client,
     model: config.copilot.model,
