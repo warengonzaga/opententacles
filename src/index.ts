@@ -147,10 +147,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+export { main as startBot };
 
 // Preserve type re-exports in case other modules import them via this entry.
 export type { AppConfig, AppSecrets };
