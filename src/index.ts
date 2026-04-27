@@ -1,8 +1,14 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { approveAll, CopilotClient } from "@github/copilot-sdk";
-import { channelConfig, loadConfig, resolveRegisteredUser, type AppConfig, type AppSecrets } from "./core/config.ts";
-import { CopilotOrchestrator, type CopilotClientLike } from "./core/copilot.ts";
+import {
+  type AppConfig,
+  type AppSecrets,
+  channelConfig,
+  loadConfig,
+  resolveRegisteredUser,
+} from "./core/config.ts";
+import { type CopilotClientLike, CopilotOrchestrator } from "./core/copilot.ts";
 import { openDb } from "./core/db.ts";
 import { resolveGhToken } from "./core/gh.ts";
 import { createLogger } from "./core/logger.ts";
@@ -11,8 +17,11 @@ import { resolveDataDir, resolveWorkspaceDir } from "./core/paths.ts";
 import type { Channel, ScopedCopilot } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
-function buildSystemMessage(workspaceDir: string, owners: string[]): string {
-  const ownerList = owners.length > 0 ? owners.map((o) => `"${o}"`).join(", ") : "(none configured)";
+function buildSystemMessage(workspaceDir: string, namespaces: string[]): string {
+  const namespaceList =
+    namespaces.length > 0
+      ? namespaces.map((o) => `"${o}"`).join(", ")
+      : "(none configured)";
   return [
     "You are running inside Open Tentacles — a framework that exposes GitHub Copilot through chat apps.",
     "",
@@ -20,7 +29,7 @@ function buildSystemMessage(workspaceDir: string, owners: string[]): string {
     "Everything you do (clone, read, edit, run) MUST stay inside that directory.",
     "",
     "Repository layout convention — when you clone a git repo, place it at:",
-    `  - ./<owner>/<name>/            if the owner is in this list: ${ownerList}`,
+    `  - ./<owner>/<name>/            if the owner is in this list: ${namespaceList}`,
     "  - ./contribution/<owner>/<name>/   otherwise",
     "",
     "Before cloning, check whether the target path already exists and prefer `git fetch` / `git pull` on the existing clone.",
@@ -38,7 +47,10 @@ async function main(): Promise<void> {
   }
   const { config, secrets, close: closeConfig } = loaded;
 
-  const logger = createLogger({ level: config.log.level, format: config.log.format });
+  const logger = createLogger({
+    level: config.log.level,
+    format: config.log.format,
+  });
   logger.info(
     { channels: config.channels.enabled, model: config.copilot.model },
     "opententacles starting",
@@ -70,7 +82,10 @@ async function main(): Promise<void> {
     );
   }
 
-  const systemMessage = buildSystemMessage(workspaceDir, config.github.owners);
+  const systemMessage = buildSystemMessage(
+    workspaceDir,
+    config.github.namespaces,
+  );
 
   const client = new CopilotClient() as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
@@ -142,7 +157,6 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
-export { main as startBot };
-
 // Preserve type re-exports in case other modules import them via this entry.
 export type { AppConfig, AppSecrets };
+export { main as startBot };

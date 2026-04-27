@@ -8,7 +8,9 @@ export interface DiscoveryOptions {
   logger: Logger;
 }
 
-export async function discoverChannels(opts: DiscoveryOptions): Promise<Channel[]> {
+export async function discoverChannels(
+  opts: DiscoveryOptions,
+): Promise<Channel[]> {
   const channelsDir = opts.channelsDir ?? resolve(import.meta.dir, "channels");
   const channels: Channel[] = [];
 

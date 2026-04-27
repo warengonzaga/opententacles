@@ -1,10 +1,6 @@
 import type { Client } from "discord.js";
 import type { Channel, ChannelContext } from "../../core/types.ts";
-import {
-  createDiscordClient,
-  DiscordChannelConfig,
-  Events,
-} from "./client.ts";
+import { createDiscordClient, DiscordChannelConfig, Events } from "./client.ts";
 import {
   DiscordPermissionBroker,
   type DiscordRestLike,
@@ -46,11 +42,18 @@ class DiscordChannel implements Channel {
     this.client = client;
 
     const rest = createDiscordRest(cfg.botToken);
-    const broker = new DiscordPermissionBroker(rest, ctx.logger.child({ sub: "permissions" }));
-    broker.setUserChannelResolver((userId) => this.userDmChannels.get(userId) ?? null);
+    const broker = new DiscordPermissionBroker(
+      rest,
+      ctx.logger.child({ sub: "permissions" }),
+    );
+    broker.setUserChannelResolver(
+      (userId) => this.userDmChannels.get(userId) ?? null,
+    );
     this.broker = broker;
 
-    ctx.copilot.setPermissionHandlerFactory((userKey) => broker.makeHandler(userKey));
+    ctx.copilot.setPermissionHandlerFactory((userKey) =>
+      broker.makeHandler(userKey),
+    );
 
     client.once(Events.ClientReady, (c) => {
       ctx.logger.info({ user: c.user.tag }, "discord: ready");
@@ -93,7 +96,11 @@ class DiscordChannel implements Channel {
       }
 
       ctx.logger.info(
-        { authorId: d.author.id, channelId: d.channel_id, hasContent: !!d.content },
+        {
+          authorId: d.author.id,
+          channelId: d.channel_id,
+          hasContent: !!d.content,
+        },
         "discord: DM received",
       );
 
@@ -127,7 +134,10 @@ class DiscordChannel implements Channel {
   ): Promise<void> {
     const content = d.content.trim();
     if (!content) {
-      ctx.logger.debug({ authorId: d.author.id }, "discord: ignoring message with no text content");
+      ctx.logger.debug(
+        { authorId: d.author.id },
+        "discord: ignoring message with no text content",
+      );
       return;
     }
 
@@ -136,7 +146,10 @@ class DiscordChannel implements Channel {
     const sendTyping = () => rest.sendTyping(channelId).catch(() => {});
 
     void sendTyping();
-    const typingTimer = setInterval(() => void sendTyping(), TYPING_INTERVAL_MS);
+    const typingTimer = setInterval(
+      () => void sendTyping(),
+      TYPING_INTERVAL_MS,
+    );
     this.typingTimers.set(d.id, typingTimer);
     const stopTyping = () => {
       const t = this.typingTimers.get(d.id);
@@ -177,7 +190,9 @@ class DiscordChannel implements Channel {
         await rest
           .sendMessage(channelId, {
             content: "_(error: Copilot request failed)_",
-            ...(replyToId ? { message_reference: { message_id: replyToId } } : {}),
+            ...(replyToId
+              ? { message_reference: { message_id: replyToId } }
+              : {}),
           })
           .catch(() => {});
       },
@@ -192,15 +207,18 @@ function createDiscordRest(
     const res = await fetch(`https://discord.com/api/v10${path}`, {
       ...init,
       headers: {
-        "Authorization": `Bot ${token}`,
+        Authorization: `Bot ${token}`,
         "Content-Type": "application/json",
-        "User-Agent": "OpenTentacles (https://github.com/warengonzaga/opententacles, 0.1.0)",
+        "User-Agent":
+          "OpenTentacles (https://github.com/warengonzaga/opententacles, 0.1.0)",
         ...(init.headers ?? {}),
       },
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`Discord REST ${init.method ?? "GET"} ${path} ${res.status}: ${body}`);
+      throw new Error(
+        `Discord REST ${init.method ?? "GET"} ${path} ${res.status}: ${body}`,
+      );
     }
     return res;
   };
@@ -217,10 +235,13 @@ function createDiscordRest(
       return (await res.json()) as RestMessage;
     },
     ackInteraction: async (interactionId, interactionToken, body) => {
-      await call(`/interactions/${interactionId}/${interactionToken}/callback`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+      await call(
+        `/interactions/${interactionId}/${interactionToken}/callback`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
     },
   };
 }

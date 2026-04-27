@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { openDb } from "../../src/core/db.ts";
 import { MemoryStore } from "../../src/core/memory.ts";
@@ -76,10 +76,18 @@ describe("MemoryStore", () => {
     expect(block).toContain("--- End of history ---");
     // Content is JSON-serialized to prevent prompt injection via delimiter spoofing.
     const jsonLine = block.split("\n")[1];
-    const parsed = JSON.parse(jsonLine ?? "") as { turns: { role: string; content: string }[] };
+    const parsed = JSON.parse(jsonLine ?? "") as {
+      turns: { role: string; content: string }[];
+    };
     expect(parsed.turns).toHaveLength(2);
-    expect(parsed.turns[0]).toEqual({ role: "user", content: "what repos do I have?" });
-    expect(parsed.turns[1]).toEqual({ role: "assistant", content: "you have two repos" });
+    expect(parsed.turns[0]).toEqual({
+      role: "user",
+      content: "what repos do I have?",
+    });
+    expect(parsed.turns[1]).toEqual({
+      role: "assistant",
+      content: "you have two repos",
+    });
   });
 
   test("loadRecent returns empty array when no history exists", () => {

@@ -2,8 +2,16 @@ import { mkdirSync } from "node:fs";
 import * as p from "@clack/prompts";
 import { ConfigEngine } from "@wgtechlabs/config-engine";
 import { SecretsEngine } from "@wgtechlabs/secrets-engine";
-import { ConfigSchema, CONFIG_DEFAULTS, type AppConfig } from "./core/config.ts";
-import { resolveConfigDir, resolveDataDir, resolveWorkspaceDir } from "./core/paths.ts";
+import {
+  type AppConfig,
+  CONFIG_DEFAULTS,
+  ConfigSchema,
+} from "./core/config.ts";
+import {
+  resolveConfigDir,
+  resolveDataDir,
+  resolveWorkspaceDir,
+} from "./core/paths.ts";
 
 function parseList(raw: string): string[] {
   return raw
@@ -24,7 +32,9 @@ export async function setupCommand(): Promise<void> {
     "Paths",
   );
 
-  p.log.info("Copilot auth uses your existing `gh` CLI login — no token needed.");
+  p.log.info(
+    "Copilot auth uses your existing `gh` CLI login — no token needed.",
+  );
   p.log.info("Secrets stored encrypted via @wgtechlabs/secrets-engine.");
 
   // Open config engine early so we can read existing values for the overwrite guard.
@@ -43,16 +53,31 @@ export async function setupCommand(): Promise<void> {
 
   // --- Discord ---
   const discordToken = await p.password({ message: "Discord bot token:" });
-  if (p.isCancel(discordToken)) { cancel(); return; }
+  if (p.isCancel(discordToken)) {
+    cancel();
+    return;
+  }
+
+  const discordTokenValue = (discordToken as string).trim();
 
   const ownerIdRaw = await p.text({
-    message: "Discord registered owner user ID (one user only):",
-    placeholder: "blank = no restriction",
+    message: "Discord registered owner user ID (required when bot token is set):",
+    placeholder: "leave blank only if Discord is disabled",
+    validate(value) {
+      if (discordTokenValue && !(value?.trim())) {
+        return "A Discord registered owner user ID is required when a Discord bot token is configured.";
+      }
+    },
   });
-  if (p.isCancel(ownerIdRaw)) { cancel(); return; }
+  if (p.isCancel(ownerIdRaw)) {
+    cancel();
+    return;
+  }
 
   const newUserId = (ownerIdRaw as string).trim() || undefined;
-  const existingOwner = engine.get("discord.registeredOwner") as string | undefined;
+  const existingOwner = engine.get("discord.registeredOwner") as
+    | string
+    | undefined;
 
   if (newUserId && existingOwner && existingOwner !== newUserId) {
     const overwrite = await p.confirm({
@@ -71,14 +96,20 @@ export async function setupCommand(): Promise<void> {
     placeholder: "discord",
     defaultValue: "discord",
   });
-  if (p.isCancel(channelsRaw)) { cancel(); return; }
+  if (p.isCancel(channelsRaw)) {
+    cancel();
+    return;
+  }
 
   const model = await p.text({
     message: "Copilot model:",
     placeholder: "gpt-4.1",
     defaultValue: "gpt-4.1",
   });
-  if (p.isCancel(model)) { cancel(); return; }
+  if (p.isCancel(model)) {
+    cancel();
+    return;
+  }
 
   const idleTimeout = await p.text({
     message: "Idle session timeout (minutes):",
@@ -90,7 +121,10 @@ export async function setupCommand(): Promise<void> {
       if (!Number.isInteger(n) || n <= 0) return "Enter a positive integer.";
     },
   });
-  if (p.isCancel(idleTimeout)) { cancel(); return; }
+  if (p.isCancel(idleTimeout)) {
+    cancel();
+    return;
+  }
 
   const logLevel = await p.select({
     message: "Log level:",
@@ -102,7 +136,10 @@ export async function setupCommand(): Promise<void> {
       { value: "silent", label: "silent" },
     ],
   });
-  if (p.isCancel(logLevel)) { cancel(); return; }
+  if (p.isCancel(logLevel)) {
+    cancel();
+    return;
+  }
 
   const logFormat = await p.select({
     message: "Log format:",
@@ -111,13 +148,19 @@ export async function setupCommand(): Promise<void> {
       { value: "json", label: "json", hint: "machine-readable" },
     ],
   });
-  if (p.isCancel(logFormat)) { cancel(); return; }
+  if (p.isCancel(logFormat)) {
+    cancel();
+    return;
+  }
 
   const ownersRaw = await p.text({
-    message: "GitHub owners you control (comma-separated):",
+    message: "GitHub namespaces you control (comma-separated orgs/users):",
     placeholder: "blank to skip",
   });
-  if (p.isCancel(ownersRaw)) { cancel(); return; }
+  if (p.isCancel(ownersRaw)) {
+    cancel();
+    return;
+  }
 
   // --- Save ---
   const s = p.spinner();
@@ -126,21 +169,23 @@ export async function setupCommand(): Promise<void> {
   try {
     const secrets = await SecretsEngine.open();
     try {
-      if (discordToken) await secrets.set("discord.botToken", discordToken as string);
+      if (discordToken)
+        await secrets.set("discord.botToken", discordToken as string);
     } finally {
       await secrets.close();
     }
 
     const channels = parseList(channelsRaw as string);
-    const owners = parseList(ownersRaw as string ?? "");
+    const owners = parseList((ownersRaw as string) ?? "");
 
     // Setting undefined clears the key, effectively removing the restriction.
     engine.set("discord.registeredOwner", newUserId);
     engine.set("channels.enabled", channels);
-    engine.set("github.owners", owners);
+    engine.set("github.namespaces", owners);
     engine.set("copilot.model", model as string);
     const n = Number.parseInt(idleTimeout as string, 10);
-    if (Number.isInteger(n) && n > 0) engine.set("copilot.idleTimeoutMinutes", n);
+    if (Number.isInteger(n) && n > 0)
+      engine.set("copilot.idleTimeoutMinutes", n);
     engine.set("log.level", logLevel as string);
     engine.set("log.format", logFormat as string);
 
