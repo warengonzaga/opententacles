@@ -1,6 +1,6 @@
 {
   "name": "opententacles",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A GitHub-native AI agent framework that brings Copilot to every place open-source work happens.",
   "type": "module",
   "main": "dist/cli.js",
