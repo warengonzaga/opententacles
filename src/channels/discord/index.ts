@@ -83,11 +83,11 @@ class DiscordChannel implements Channel {
       // Ignore bots and self
       if (d.author.bot) return;
       if (d.author.id === client.user.id) return;
-      // Allowlist
-      if (cfg.allowlist.length > 0 && !cfg.allowlist.includes(d.author.id)) {
+      // Single-user enforcement — registeredUserId is set by the framework from config
+      if (ctx.registeredUserId && d.author.id !== ctx.registeredUserId) {
         ctx.logger.info(
           { userId: d.author.id, tag: d.author.username },
-          "discord: rejected DM (not on allowlist)",
+          "discord: rejected DM (not the registered user)",
         );
         return;
       }
