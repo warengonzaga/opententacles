@@ -38,7 +38,9 @@ function serializeValue(value: unknown): unknown {
   return value;
 }
 
-function serializeContext(ctx: Record<string, unknown>): Record<string, unknown> {
+function serializeContext(
+  ctx: Record<string, unknown>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(ctx)) out[k] = serializeValue(v);
   return out;
@@ -68,10 +70,18 @@ class ShimLogger implements Logger {
     }
   }
 
-  debug(a: unknown, b?: string): void { this.emit("debug", a, b); }
-  info(a: unknown, b?: string): void { this.emit("info", a, b); }
-  warn(a: unknown, b?: string): void { this.emit("warn", a, b); }
-  error(a: unknown, b?: string): void { this.emit("error", a, b); }
+  debug(a: unknown, b?: string): void {
+    this.emit("debug", a, b);
+  }
+  info(a: unknown, b?: string): void {
+    this.emit("info", a, b);
+  }
+  warn(a: unknown, b?: string): void {
+    this.emit("warn", a, b);
+  }
+  error(a: unknown, b?: string): void {
+    this.emit("error", a, b);
+  }
 
   child(bindings: Record<string, unknown>): Logger {
     return new ShimLogger({ ...this.bindings, ...bindings });
@@ -100,9 +110,11 @@ export function createLogger(opts: CreateLoggerOptions | string): Logger {
           ts: new Date().toISOString(),
           level: String(level).toLowerCase(),
           msg: message,
-          ...(data && typeof data === "object" ? (data as Record<string, unknown>) : {}),
+          ...(data && typeof data === "object"
+            ? (data as Record<string, unknown>)
+            : {}),
         });
-        process.stdout.write(line + "\n");
+        process.stdout.write(`${line}\n`);
       },
     });
   } else {
