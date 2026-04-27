@@ -1,10 +1,25 @@
 import type { Logger } from "./logger.ts";
-import type { CopilotOrchestrator } from "./copilot.ts";
+
+/**
+ * The channel-scoped Copilot interface exposed to every channel implementation.
+ * The framework automatically namespaces userKeys as `<channelName>:<userId>`
+ * so sessions are isolated across channels. Channels pass raw user IDs only.
+ */
+export interface ScopedCopilot {
+  send(userId: string, prompt: string, handler: StreamHandler): Promise<void>;
+  setPermissionHandlerFactory(factory: (userId: string) => unknown): void;
+}
 
 export interface ChannelContext {
-  copilot: CopilotOrchestrator;
+  /** Channel-scoped Copilot interface — userKey namespacing is handled by the framework. */
+  copilot: ScopedCopilot;
   logger: Logger;
   config: unknown;
+  /**
+   * The single authorized user ID for this channel, or null if unrestricted.
+   * Set by the framework from config. Channels use this for access control.
+   */
+  registeredUserId: string | null;
 }
 
 export interface Channel {
