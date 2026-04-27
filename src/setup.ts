@@ -114,7 +114,7 @@ export async function setupCommand(): Promise<void> {
   if (p.isCancel(logFormat)) { cancel(); return; }
 
   const ownersRaw = await p.text({
-    message: "GitHub owners you control (comma-separated):",
+    message: "GitHub namespaces you control (comma-separated orgs/users):",
     placeholder: "blank to skip",
   });
   if (p.isCancel(ownersRaw)) { cancel(); return; }
@@ -137,7 +137,7 @@ export async function setupCommand(): Promise<void> {
     // Setting undefined clears the key, effectively removing the restriction.
     engine.set("discord.registeredOwner", newUserId);
     engine.set("channels.enabled", channels);
-    engine.set("github.owners", owners);
+    engine.set("github.namespaces", owners);
     engine.set("copilot.model", model as string);
     const n = Number.parseInt(idleTimeout as string, 10);
     if (Number.isInteger(n) && n > 0) engine.set("copilot.idleTimeoutMinutes", n);

@@ -70,7 +70,7 @@ async function main(): Promise<void> {
     );
   }
 
-  const systemMessage = buildSystemMessage(workspaceDir, config.github.owners);
+  const systemMessage = buildSystemMessage(workspaceDir, config.github.namespaces);
 
   const client = new CopilotClient() as unknown as CopilotClientLike;
   const orchestrator = new CopilotOrchestrator({
