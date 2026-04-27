@@ -1,5 +1,5 @@
 /**
- * Purge command — wipes all OpenTentacles state for a fresh install.
+ * Purge command — wipes all Open Tentacles state for a fresh install.
  *
  * Usage:
  *   opententacles purge                   → wipes ~/.opententacles/ AND owned secret keys
@@ -8,7 +8,7 @@
  *   opententacles purge --keep-secrets    → delete data dir only; keep secret keys
  *
  * The shared `~/.secrets-engine/` store is NEVER touched as a whole — only
- * the specific keys owned by OpenTentacles (see SECRET_KEYS in core/config.ts)
+ * the specific keys owned by Open Tentacles (see SECRET_KEYS in core/config.ts)
  * are deleted via `SecretsEngine.delete(key)`. Other apps using the same
  * store are unaffected.
  */
@@ -104,13 +104,13 @@ export async function purgeCommand(argv: string[]): Promise<void> {
   const dataDir = resolveDataDir();
   const dataExists = existsSync(dataDir);
 
-  p.intro("OpenTentacles — purge");
+  p.intro("Open Tentacles — purge");
 
   const targetLines = [`• ${dataDir}${dataExists ? "" : "  (not present — will be skipped)"}`];
   if (flags.keepSecrets) {
     targetLines.push("• secret keys will be KEPT (--keep-secrets)");
   } else {
-    targetLines.push("• OpenTentacles-owned secret keys:");
+    targetLines.push("• Open Tentacles-owned secret keys:");
     for (const k of SECRET_KEYS) targetLines.push(`    - "${k}"`);
     targetLines.push("  (other apps' secrets are not touched)");
   }

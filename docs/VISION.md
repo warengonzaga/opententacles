@@ -2,7 +2,7 @@
 
 > Give GitHub Copilot arms.
 
-OpenTentacles is a **GitHub-native AI agent framework for personal OSS maintainers**. It turns GitHub Copilot from a chat tool you talk to in a browser tab into a partner that reaches out everywhere your open-source work happens.
+Open Tentacles is a **GitHub-native AI agent framework for personal OSS maintainers**. It turns GitHub Copilot from a chat tool you talk to in a browser tab into a partner that reaches out everywhere your open-source work happens.
 
 This document is the project's north star. If a decision conflicts with this document, this document wins until it's deliberately updated.
 
@@ -14,13 +14,13 @@ I maintain open-source projects. GitHub Copilot is brilliant inside vscode and o
 
 I don't want a tool that answers questions when I open it. I want a **partner** that shows up where I already am, remembers what we've worked on, and helps me maintain and build OSS — everywhere.
 
-GitHub's mascot is the Octocat. Octocats have tentacles. So OpenTentacles gives Copilot its tentacles: pluggable channels that reach into Discord, Telegram, and beyond, all wired to a single Copilot brain.
+GitHub's mascot is the Octocat. Octocats have tentacles. So Open Tentacles gives Copilot its tentacles: pluggable channels that reach into Discord, Telegram, and beyond, all wired to a single Copilot brain.
 
 ---
 
 ## What it is
 
-**OpenTentacles is a GitHub-native AI agent framework that brings Copilot to every place open-source work happens.**
+**Open Tentacles is a GitHub-native AI agent framework that brings Copilot to every place open-source work happens.**
 
 The framework is the product. Channels are how we prove the framework works.
 
@@ -62,7 +62,7 @@ Four pillars, in order:
 
 ### Heartware (the agent loop)
 
-OpenTentacles has its own heartware — the agent loop that decides, plans, calls tools, and acts. It's **inspired by TinyClaw and OpenClaw** but implemented for this project's GitHub-native focus. A shared `heartware` library may be extracted later; for now, it lives here.
+Open Tentacles has its own heartware — the agent loop that decides, plans, calls tools, and acts. It's **inspired by TinyClaw and OpenClaw** but implemented for this project's GitHub-native focus. A shared `heartware` library may be extracted later; for now, it lives here.
 
 ### Channel framework
 
@@ -94,13 +94,13 @@ Central `bun:sqlite` store, **channel-tagged**, with cross-channel recall:
 
 Result: ask the agent on Telegram *"do you remember what we discussed?"* and it can answer *"yes — on Discord on Tuesday, you mentioned the rate-limiter bug in `wgtechlabs/clean-commit`."*
 
-Copilot SDK does not maintain durable cross-session memory. **OpenTentacles owns the memory layer.** That's the partner part of "partner, not tool."
+Copilot SDK does not maintain durable cross-session memory. **Open Tentacles owns the memory layer.** That's the partner part of "partner, not tool."
 
 ### Storage
 
 `bun:sqlite`. One file. Zero deps. Zero ops.
 
-Postgres is not on the roadmap. If OpenTentacles ever grows a multi-tenant SaaS sibling, that's a separate product.
+Postgres is not on the roadmap. If Open Tentacles ever grows a multi-tenant SaaS sibling, that's a separate product.
 
 A future option — inspired by clawsweeper — is **repo-as-durable-memory**: persist decisions and audit trails as markdown in a designated repo, on top of sqlite. Optional, opt-in, not v1.
 
@@ -133,11 +133,11 @@ Every action — autonomous or confirmed — leaves a receipt in the audit log. 
 
 ## Relationship to OpenClaw and TinyClaw
 
-OpenTentacles is **inspired by OpenClaw and TinyClaw**, not a fork or a clone.
+Open Tentacles is **inspired by OpenClaw and TinyClaw**, not a fork or a clone.
 
 - **OpenClaw** is a generic AI agent platform.
 - **TinyClaw** is the lightweight heartware reference.
-- **OpenTentacles** is a different flavor — **GitHub-focused, OSS-maintainer-focused, Copilot-brained.** Not an alternative to OpenClaw; a sibling with a different mission.
+- **Open Tentacles** is a different flavor — **GitHub-focused, OSS-maintainer-focused, Copilot-brained.** Not an alternative to OpenClaw; a sibling with a different mission.
 
 OpenClaw skills/plugins are not a target for compatibility in v1. The mission is OSS maintenance, not generic agent capability.
 
@@ -170,7 +170,7 @@ WhatsApp, Slack, Matrix, IRC, Mastodon, Bluesky, anything. The framework makes c
 - **License:** GPLv3. Contributors sign a CLA. Dual-licensing is on the table if the project grows.
 - **Self-host first.** Docker is the official deploy target. Railway is the recommended platform.
 - **Private during early development.** Will be made public when v1 is ready.
-- **Brand:** OpenTentacles, the Octocat-flavored cousin of OpenClaw. The tentacles metaphor is load-bearing — every channel is a tentacle reaching out from one Copilot brain.
+- **Brand:** Open Tentacles, the Octocat-flavored cousin of OpenClaw. The tentacles metaphor is load-bearing — every channel is a tentacle reaching out from one Copilot brain.
 
 ---
 

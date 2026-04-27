@@ -1,8 +1,10 @@
-# OpenTentacles 🐙
+# Open Tentacles 🐙
+
+![Open Tentacles](https://ghrb.waren.build/banner?header=Open+Tentacles+%F0%9F%90%99&subheader=Give+GitHub+Copilot+arms.&bg=013B84-016EEA&color=ffffff)
 
 > Give GitHub Copilot arms.
 
-**OpenTentacles is a GitHub-native AI agent framework for personal OSS maintainers.** It turns GitHub Copilot from a chat tool you talk to in a browser tab into a partner that reaches out everywhere your open-source work happens — Discord, Telegram, and beyond.
+**Open Tentacles is a GitHub-native AI agent framework for personal OSS maintainers.** It turns GitHub Copilot from a chat tool you talk to in a browser tab into a partner that reaches out everywhere your open-source work happens — Discord, Telegram, and beyond.
 
 One Copilot brain. Many tentacles.
 
@@ -22,9 +24,9 @@ Currently private while the framework hardens. Will be made public when v1 is re
 
 GitHub Copilot is brilliant inside vscode and on the web — but the moment you leave the editor, it's gone. OSS maintenance doesn't only happen in vscode. It happens on Discord with contributors, on Telegram with collaborators, on your phone, mid-conversation. The full Copilot experience is boxed.
 
-OpenTentacles unboxes it. It's the partner that shows up where you already are, remembers what you've worked on, and helps you maintain and build OSS — everywhere.
+Open Tentacles unboxes it. It's the partner that shows up where you already are, remembers what you've worked on, and helps you maintain and build OSS — everywhere.
 
-GitHub's mascot is the Octocat. Octocats have tentacles. So OpenTentacles gives Copilot its tentacles.
+GitHub's mascot is the Octocat. Octocats have tentacles. So Open Tentacles gives Copilot its tentacles.
 
 ---
 
@@ -249,7 +251,7 @@ This project is licensed under [GNU General Public License v3.0](https://www.gnu
 - [OpenClaw](https://github.com/openclaw/openclaw) — generic AI agent platform
 - [TinyClaw](https://github.com/warengonzaga/tinyclaw) — lightweight heartware reference
 
-OpenTentacles is **a different flavor** — GitHub-focused, OSS-maintainer-focused, Copilot-brained. Not an alternative to OpenClaw; a sibling with a different mission. See [`VISION.md`](./docs/VISION.md) for the full positioning.
+Open Tentacles is **a different flavor** — GitHub-focused, OSS-maintainer-focused, Copilot-brained. Not an alternative to OpenClaw; a sibling with a different mission. See [`VISION.md`](./docs/VISION.md) for the full positioning.
 
 ## 📝 Author
 

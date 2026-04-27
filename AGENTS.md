@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for AI coding agents (Claude Code, Copilot, Cursor, etc.) working on **OpenTentacles**.
+Instructions for AI coding agents (Claude Code, Copilot, Cursor, etc.) working on **Open Tentacles**.
 
 ---
 
