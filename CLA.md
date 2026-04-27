@@ -82,8 +82,6 @@ The Maintainer may amend this Agreement from time to time by publishing a new ve
 
 Either party may terminate this Agreement upon written notice to the other party. Upon termination, the licenses granted under Sections 2 and 3 of this Agreement with respect to Contributions already submitted shall survive and remain in full force and effect. Termination does not affect any rights or obligations that arose prior to the date of termination.
 
-> **⚠️ Legal Review Notice:** Sections 10.1–10.4 have not yet been reviewed by legal counsel. These provisions should be reviewed by a qualified attorney before this Agreement is finalized or merged.
-
 ---
 
 **Project:** Open Tentacles
