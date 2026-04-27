@@ -31,7 +31,7 @@ export const ConfigSchema = z.object({
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
-/** Every secret key OpenTentacles stores in `@wgtechlabs/secrets-engine`. */
+/** Every secret key Open Tentacles stores in `@wgtechlabs/secrets-engine`. */
 export const SECRET_KEYS = ["discord.botToken"] as const;
 
 export const CONFIG_DEFAULTS: AppConfig = {

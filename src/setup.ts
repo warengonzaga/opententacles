@@ -13,7 +13,7 @@ function parseList(raw: string): string[] {
 }
 
 export async function setupCommand(): Promise<void> {
-  p.intro("OpenTentacles — setup");
+  p.intro("Open Tentacles — setup");
 
   p.note(
     [

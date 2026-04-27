@@ -14,7 +14,7 @@ import { discoverChannels } from "./registry.ts";
 function buildSystemMessage(workspaceDir: string, owners: string[]): string {
   const ownerList = owners.length > 0 ? owners.map((o) => `"${o}"`).join(", ") : "(none configured)";
   return [
-    "You are running inside OpenTentacles — a framework that exposes GitHub Copilot through chat apps.",
+    "You are running inside Open Tentacles — a framework that exposes GitHub Copilot through chat apps.",
     "",
     `Your working directory is the workspace root: ${workspaceDir}`,
     "Everything you do (clone, read, edit, run) MUST stay inside that directory.",

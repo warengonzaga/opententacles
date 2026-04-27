@@ -3,7 +3,7 @@ import { version } from "../package.json";
 
 function showHelp(): void {
   console.log(
-    `  OpenTentacles v${version}
+    `  Open Tentacles v${version}
   A GitHub-native AI agent framework.
 
   Usage
