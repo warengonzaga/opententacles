@@ -84,7 +84,11 @@ export class DiscordStreamBuffer {
 
     for (const [i, chunk] of chunks.entries()) {
       const target = this.messages.at(-1);
-      if (target === undefined) break;
+      if (target === undefined) {
+        throw new Error(
+          "DiscordStreamBuffer invariant violated: expected at least one message during flush",
+        );
+      }
       if (i > 0) {
         const next = await this.sink.reply(chunk);
         this.messages.push(next);
