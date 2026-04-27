@@ -10,7 +10,7 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
     expect(cfg.discord.registeredOwner).toBeUndefined();
     expect(cfg.log.level).toBe("info");
     expect(cfg.log.format).toBe("text");
-    expect(cfg.github.owners).toEqual([]);
+    expect(cfg.github.namespaces).toEqual([]);
   });
 
   test("rejects non-positive idle timeout", () => {
@@ -40,7 +40,7 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
       channels: { enabled: ["discord", "telegram"] },
       discord: { registeredOwner: "123" },
       log: { level: "debug", format: "json" },
-      github: { owners: ["warengonzaga"] },
+      github: { namespaces: ["warengonzaga"] },
     });
     expect(cfg.copilot.model).toBe("gpt-4o");
     expect(cfg.copilot.idleTimeoutMinutes).toBe(60);
@@ -48,7 +48,7 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
     expect(cfg.discord.registeredOwner).toBe("123");
     expect(cfg.log.level).toBe("debug");
     expect(cfg.log.format).toBe("json");
-    expect(cfg.github.owners).toEqual(["warengonzaga"]);
+    expect(cfg.github.namespaces).toEqual(["warengonzaga"]);
   });
 });
 

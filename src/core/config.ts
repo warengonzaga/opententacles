@@ -25,7 +25,7 @@ export const ConfigSchema = z.object({
     format: z.enum(["text", "json"]),
   }),
   github: z.object({
-    owners: z.array(z.string()),
+    namespaces: z.array(z.string()),
   }),
 });
 
@@ -39,7 +39,7 @@ export const CONFIG_DEFAULTS: AppConfig = {
   channels: { enabled: ["discord"] },
   discord: { registeredOwner: undefined },
   log: { level: "info", format: "text" },
-  github: { owners: [] },
+  github: { namespaces: [] },
 };
 
 /**
@@ -56,6 +56,47 @@ export interface LoadedConfig {
   close(): Promise<void>;
 }
 
+/**
+ * Reads environment variables and returns a partial config + secrets override.
+ * Env vars take priority over stored config/secrets, enabling Railway-style
+ * deployments where secrets are injected at runtime.
+ *
+ * Supported env vars:
+ *   DISCORD_BOT_TOKEN          — discord bot secret
+ *   DISCORD_OWNER_ID           — restrict bot to one Discord user ID
+ *   GITHUB_NAMESPACES          — comma-separated GitHub orgs/users you own
+ *   OPENTENTACLES_LOG_LEVEL    — debug | info | warn | error | silent
+ *   OPENTENTACLES_DATA_DIR     — override data directory (handled in paths.ts)
+ */
+function readEnvOverrides(): {
+  config: Partial<AppConfig>;
+  discordBotToken: string | null;
+} {
+  const overrides: Partial<AppConfig> = {};
+
+  const logLevel = Bun.env.OPENTENTACLES_LOG_LEVEL;
+  if (logLevel) {
+    const parsed = ConfigSchema.shape.log.shape.level.safeParse(logLevel);
+    if (parsed.success) overrides.log = { ...CONFIG_DEFAULTS.log, level: parsed.data };
+  }
+
+  const discordOwnerId = Bun.env.DISCORD_OWNER_ID;
+  if (discordOwnerId) {
+    overrides.discord = { registeredOwner: discordOwnerId };
+  }
+
+  const namespacesRaw = Bun.env.GITHUB_NAMESPACES;
+  if (namespacesRaw) {
+    overrides.github = {
+      namespaces: namespacesRaw.split(",").map((s) => s.trim()).filter(Boolean),
+    };
+  }
+
+  const discordBotToken = Bun.env.DISCORD_BOT_TOKEN ?? null;
+
+  return { config: overrides, discordBotToken };
+}
+
 export async function loadConfig(): Promise<LoadedConfig> {
   const configDir = resolveConfigDir();
   mkdirSync(configDir, { recursive: true });
@@ -68,14 +109,56 @@ export async function loadConfig(): Promise<LoadedConfig> {
   });
 
   const secrets = await SecretsEngine.open();
-  const discordBotToken = (await secrets.get("discord.botToken")) ?? "";
+  const storedBotToken = (await secrets.get("discord.botToken")) ?? "";
 
-  // Merge engine store onto defaults to fill any keys not yet persisted.
+  const envOverrides = readEnvOverrides();
+
+  // Priority: env vars > stored config > defaults
+  // All nested objects are merged explicitly so a partial override doesn't wipe sibling keys.
+  const store = engine.store as Partial<AppConfig>;
+  const env = envOverrides.config;
   const merged: AppConfig = {
-    ...CONFIG_DEFAULTS,
-    ...(engine.store as Partial<AppConfig>),
+    copilot: {
+      ...CONFIG_DEFAULTS.copilot,
+      ...(store.copilot ?? {}),
+      ...(env.copilot ?? {}),
+    },
+    channels: {
+      ...CONFIG_DEFAULTS.channels,
+      ...(store.channels ?? {}),
+      ...(env.channels ?? {}),
+    },
+    log: {
+      ...CONFIG_DEFAULTS.log,
+      ...(store.log ?? {}),
+      ...(env.log ?? {}),
+    },
+    discord: {
+      ...CONFIG_DEFAULTS.discord,
+      ...(store.discord ?? {}),
+      ...(env.discord ?? {}),
+    },
+    github: {
+      ...CONFIG_DEFAULTS.github,
+      ...(store.github ?? {}),
+      ...(env.github ?? {}),
+    },
   };
   const config = ConfigSchema.parse(merged);
+
+  // Env var token takes priority over the encrypted store
+  const discordBotToken = envOverrides.discordBotToken ?? storedBotToken;
+
+  // If a Discord bot token is present, an owner ID is required — otherwise the
+  // bot is open to anyone, burning the operator's Copilot quota.
+  if (discordBotToken && !config.discord.registeredOwner) {
+    await secrets.close();
+    engine.close();
+    throw new Error(
+      "Discord bot token is set but no owner ID is configured.\n" +
+      "Set DISCORD_OWNER_ID (env) or run `opententacles setup` to register an owner.",
+    );
+  }
 
   return {
     config,
