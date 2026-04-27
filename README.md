@@ -91,7 +91,7 @@ Configuration is split by sensitivity:
 | Variable | Required | Description |
 |---|---|---|
 | `DISCORD_BOT_TOKEN` | ✅ Yes | Your Discord bot secret token |
-| `DISCORD_OWNER_ID` | ✅ Yes (required when `DISCORD_BOT_TOKEN` is set) | Discord user ID of the bot owner — without this, the bot accepts messages from anyone and burns your Copilot quota. Optional only if you intentionally want open access (NOT recommended) |
+| `DISCORD_OWNER_ID` | ✅ Yes (required when `DISCORD_BOT_TOKEN` is set) | Discord user ID of the bot owner. This is required to prevent the bot from accepting messages from anyone and burning your Copilot quota. |
 | `GITHUB_NAMESPACES` | Optional | Comma-separated GitHub orgs/users you control (e.g. `warengonzaga,wgtechlabs`) — used to place cloned repos in first-party paths |
 | `OPENTENTACLES_LOG_LEVEL` | Optional | `debug` \| `info` \| `warn` \| `error` \| `silent` (default: `info`) |
 | `OPENTENTACLES_DATA_DIR` | Optional | Override the data directory (default: `~/.opententacles`) |
