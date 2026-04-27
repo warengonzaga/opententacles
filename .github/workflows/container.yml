@@ -27,7 +27,7 @@ jobs:
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Build and Push Container
-        uses: wgtechlabs/container-build-flow-action@d64e8cce8fa7694f4a3047e8384b4d21773cd41d # v1.7.1
+        uses: wgtechlabs/container-build-flow-action@175c12ee7dcb4a0ea2b6223d4ac842cb184b0c86 # v1.7.1
         with:
           registry: both
           dockerhub-username: ${{ secrets.DOCKER_HUB_USERNAME }}
