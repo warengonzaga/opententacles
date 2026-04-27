@@ -68,7 +68,7 @@ export interface LoadedConfig {
  *   OPENTENTACLES_LOG_LEVEL    — debug | info | warn | error | silent
  *   OPENTENTACLES_DATA_DIR     — override data directory (handled in paths.ts)
  */
-function readEnvOverrides(): {
+export function readEnvOverrides(): {
   config: Partial<AppConfig>;
   discordBotToken: string | null;
 } {
@@ -78,7 +78,7 @@ function readEnvOverrides(): {
   if (logLevel) {
     const parsed = ConfigSchema.shape.log.shape.level.safeParse(logLevel);
     if (parsed.success)
-      overrides.log = { ...CONFIG_DEFAULTS.log, level: parsed.data };
+      overrides.log = { level: parsed.data } as AppConfig["log"];
   }
 
   const discordOwnerId = Bun.env.DISCORD_OWNER_ID;
@@ -117,6 +117,13 @@ export async function loadConfig(): Promise<LoadedConfig> {
 
   const envOverrides = readEnvOverrides();
 
+  // Backwards-compat migration: github.owners (old key) → github.namespaces
+  const storeRaw = engine.store as Record<string, unknown>;
+  const githubRaw = storeRaw["github"] as Record<string, unknown> | undefined;
+  if (githubRaw && !githubRaw["namespaces"] && Array.isArray(githubRaw["owners"])) {
+    githubRaw["namespaces"] = githubRaw["owners"];
+  }
+
   // Priority: env vars > stored config > defaults
   // All nested objects are merged explicitly so a partial override doesn't wipe sibling keys.
   const store = engine.store as Partial<AppConfig>;
@@ -152,10 +159,16 @@ export async function loadConfig(): Promise<LoadedConfig> {
 
   // Env var token takes priority over the encrypted store
   const discordBotToken = envOverrides.discordBotToken ?? storedBotToken;
+  // Treat whitespace-only tokens as unset so non-Discord deployments aren't blocked.
+  const effectiveDiscordToken = discordBotToken.trim();
 
-  // If a Discord bot token is present, an owner ID is required — otherwise the
-  // bot is open to anyone, burning the operator's Copilot quota.
-  if (discordBotToken && !config.discord.registeredOwner) {
+  // If a Discord bot token is present AND Discord is enabled, an owner ID is required —
+  // otherwise the bot is open to anyone, burning the operator's Copilot quota.
+  if (
+    effectiveDiscordToken &&
+    config.channels.enabled.includes("discord") &&
+    !config.discord.registeredOwner
+  ) {
     await secrets.close();
     engine.close();
     throw new Error(
@@ -166,7 +179,7 @@ export async function loadConfig(): Promise<LoadedConfig> {
 
   return {
     config,
-    secrets: { discord: { botToken: discordBotToken } },
+    secrets: { discord: { botToken: effectiveDiscordToken } },
     close: async () => {
       engine.close();
       await secrets.close();

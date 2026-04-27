@@ -58,9 +58,16 @@ export async function setupCommand(): Promise<void> {
     return;
   }
 
+  const discordTokenValue = (discordToken as string).trim();
+
   const ownerIdRaw = await p.text({
-    message: "Discord registered owner user ID (one user only):",
-    placeholder: "blank = no restriction",
+    message: "Discord registered owner user ID (required when bot token is set):",
+    placeholder: "leave blank only if Discord is disabled",
+    validate(value) {
+      if (discordTokenValue && !(value?.trim())) {
+        return "A Discord registered owner user ID is required when a Discord bot token is configured.";
+      }
+    },
   });
   if (p.isCancel(ownerIdRaw)) {
     cancel();

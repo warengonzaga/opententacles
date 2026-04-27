@@ -1,10 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   type AppConfig,
   type AppSecrets,
   CONFIG_DEFAULTS,
   ConfigSchema,
   channelConfig,
+  readEnvOverrides,
 } from "../../src/core/config.ts";
 
 describe("ConfigSchema + CONFIG_DEFAULTS", () => {
@@ -79,5 +80,84 @@ describe("channelConfig", () => {
 
   test("returns empty object for unknown channel", () => {
     expect(channelConfig(config, secrets, "telegram")).toEqual({});
+  });
+});
+
+describe("readEnvOverrides", () => {
+  const envBackup: Record<string, string | undefined> = {};
+  const envKeys = [
+    "OPENTENTACLES_LOG_LEVEL",
+    "DISCORD_OWNER_ID",
+    "GITHUB_NAMESPACES",
+    "DISCORD_BOT_TOKEN",
+  ];
+
+  beforeEach(() => {
+    for (const key of envKeys) {
+      envBackup[key] = Bun.env[key];
+      delete Bun.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of envKeys) {
+      if (envBackup[key] === undefined) {
+        delete Bun.env[key];
+      } else {
+        Bun.env[key] = envBackup[key];
+      }
+    }
+  });
+
+  test("returns empty overrides and null token when no env vars are set", () => {
+    const result = readEnvOverrides();
+    expect(result.config).toEqual({});
+    expect(result.discordBotToken).toBeNull();
+  });
+
+  test("sets only log.level and does not wipe log.format", () => {
+    Bun.env.OPENTENTACLES_LOG_LEVEL = "debug";
+    const result = readEnvOverrides();
+    // Only level should be set; format is intentionally absent so the merge
+    // in loadConfig can apply the stored/default format.
+    expect(result.config.log as unknown).toEqual({ level: "debug" });
+    expect((result.config.log as Record<string, unknown>)["format"]).toBeUndefined();
+  });
+
+  test("ignores invalid log level", () => {
+    Bun.env.OPENTENTACLES_LOG_LEVEL = "trace";
+    const result = readEnvOverrides();
+    expect(result.config.log).toBeUndefined();
+  });
+
+  test("sets discord.registeredOwner from DISCORD_OWNER_ID", () => {
+    Bun.env.DISCORD_OWNER_ID = "user-123";
+    const result = readEnvOverrides();
+    expect(result.config.discord).toEqual({ registeredOwner: "user-123" });
+  });
+
+  test("splits and trims GITHUB_NAMESPACES", () => {
+    Bun.env.GITHUB_NAMESPACES = "warengonzaga, wgtechlabs, ";
+    const result = readEnvOverrides();
+    expect(result.config.github?.namespaces).toEqual([
+      "warengonzaga",
+      "wgtechlabs",
+    ]);
+  });
+
+  test("captures DISCORD_BOT_TOKEN", () => {
+    Bun.env.DISCORD_BOT_TOKEN = "secret-tok";
+    const result = readEnvOverrides();
+    expect(result.discordBotToken).toBe("secret-tok");
+  });
+});
+
+describe("loadConfig owner requirement", () => {
+  test("ConfigSchema allows discord without registeredOwner", () => {
+    const cfg: AppConfig = ConfigSchema.parse({
+      ...CONFIG_DEFAULTS,
+      discord: {},
+    });
+    expect(cfg.discord.registeredOwner).toBeUndefined();
   });
 });

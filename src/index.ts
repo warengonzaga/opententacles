@@ -17,10 +17,10 @@ import { resolveDataDir, resolveWorkspaceDir } from "./core/paths.ts";
 import type { Channel, ScopedCopilot } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
-function buildSystemMessage(workspaceDir: string, owners: string[]): string {
-  const ownerList =
-    owners.length > 0
-      ? owners.map((o) => `"${o}"`).join(", ")
+function buildSystemMessage(workspaceDir: string, namespaces: string[]): string {
+  const namespaceList =
+    namespaces.length > 0
+      ? namespaces.map((o) => `"${o}"`).join(", ")
       : "(none configured)";
   return [
     "You are running inside Open Tentacles — a framework that exposes GitHub Copilot through chat apps.",
@@ -29,7 +29,7 @@ function buildSystemMessage(workspaceDir: string, owners: string[]): string {
     "Everything you do (clone, read, edit, run) MUST stay inside that directory.",
     "",
     "Repository layout convention — when you clone a git repo, place it at:",
-    `  - ./<owner>/<name>/            if the owner is in this list: ${ownerList}`,
+    `  - ./<owner>/<name>/            if the owner is in this list: ${namespaceList}`,
     "  - ./contribution/<owner>/<name>/   otherwise",
     "",
     "Before cloning, check whether the target path already exists and prefer `git fetch` / `git pull` on the existing clone.",
