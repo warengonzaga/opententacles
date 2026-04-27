@@ -59,16 +59,20 @@ GitHub's mascot is the Octocat. Octocats have tentacles. So Open Tentacles gives
 
 ## Quickstart
 
+### Local / self-hosted
+
 ```bash
 git clone https://github.com/warengonzaga/opententacles.git
 cd opententacles
 bun install
 
-cp .env.example .env                  # fill in COPILOT_GITHUB_TOKEN, DISCORD_BOT_TOKEN
-cp config.example.toml config.toml    # set your Discord user ID in the allowlist
-
+bun run setup   # interactive wizard — sets bot token, owner ID, and preferences
 bun run dev
 ```
+
+### Railway (managed)
+
+Set the required environment variables in the Railway dashboard, then deploy the Docker image. No interactive setup needed — see [Configuration](#configuration) below.
 
 DM the bot. Conversation memory persists per user, across sessions, across channels.
 
@@ -76,29 +80,23 @@ DM the bot. Conversation memory persists per user, across sessions, across chann
 
 ## Configuration
 
-Two files:
+Configuration is split by sensitivity:
 
-- **`.env`** — secrets and runtime env (`COPILOT_GITHUB_TOKEN`, `DISCORD_BOT_TOKEN`, `LOG_LEVEL`)
-- **`config.toml`** — non-secret tunables (model, enabled channels, per-channel allowlists, HTTP port for webhook-based channels)
+- **Secrets** — stored encrypted via `@wgtechlabs/secrets-engine` (set via `bun run setup` locally)
+- **Non-secret config** — stored in SQLite via `@wgtechlabs/config-engine` (also set via `bun run setup`)
+- **Environment variables** — take priority over stored values (ideal for Railway, Docker, CI)
 
-Example `config.toml`:
+### Environment variables
 
-```toml
-[copilot]
-model = "gpt-4.1"
-idle_timeout_minutes = 30
+| Variable | Required | Description |
+|---|---|---|
+| `DISCORD_BOT_TOKEN` | ✅ Yes | Your Discord bot secret token |
+| `DISCORD_OWNER_ID` | ✅ Yes (required when `DISCORD_BOT_TOKEN` is set) | Discord user ID of the bot owner — without this, the bot accepts messages from anyone and burns your Copilot quota. Optional only if you intentionally want open access (NOT recommended) |
+| `GITHUB_NAMESPACES` | Optional | Comma-separated GitHub orgs/users you control (e.g. `warengonzaga,wgtechlabs`) — used to place cloned repos in first-party paths |
+| `OPENTENTACLES_LOG_LEVEL` | Optional | `debug` \| `info` \| `warn` \| `error` \| `silent` (default: `info`) |
+| `OPENTENTACLES_DATA_DIR` | Optional | Override the data directory (default: `~/.opententacles`) |
 
-[http]
-port = 3000              # only used if a webhook-based channel is enabled
-
-[channels]
-enabled = ["discord"]
-
-[channels.discord]
-allowlist = ["123456789012345678"]   # Discord user IDs allowed to DM the bot
-```
-
-Leave `allowlist = []` to allow anyone (not recommended — the bot uses your Copilot subscription).
+For local dev, place these in a `.env` file — Bun loads it automatically. For Railway, set them in the Variables dashboard.
 
 ---
 
@@ -106,16 +104,19 @@ Leave `allowlist = []` to allow anyone (not recommended — the bot uses your Co
 
 ```
 src/
-├── index.ts              entry: load config → discover channels → start them
+├── cli.ts                CLI entry point (setup | start | purge)
+├── index.ts              core start: load config → discover channels → start them
+├── setup.ts              interactive setup wizard
+├── purge.ts              wipe all persisted data
 ├── registry.ts           auto-discovers channels from src/channels/*/index.ts
 ├── core/
 │   ├── types.ts          Channel + ChannelContext contracts
-│   ├── config.ts         env + TOML loader, zod-validated
+│   ├── config.ts         config loader — SQLite + env var overrides, zod-validated
 │   ├── copilot.ts        per-user session cache over @github/copilot-sdk
-│   ├── heartware.ts      the agent loop (inspired by TinyClaw / OpenClaw)
-│   ├── memory.ts         channel-tagged sqlite memory + audit
-│   ├── http-host.ts      lazy HTTP host for webhook-based channels
+│   ├── memory.ts         channel-tagged sqlite memory
 │   ├── db.ts             bun:sqlite for persistent state
+│   ├── gh.ts             GitHub CLI token resolution
+│   ├── paths.ts          data/workspace/config dir resolution
 │   └── logger.ts
 └── channels/
     ├── discord/          v1 — DM-only Discord channel (long-running)
@@ -185,10 +186,14 @@ The registry will find it at startup. See `src/channels/discord/` as a reference
 ## Scripts
 
 ```bash
+bun run setup       # interactive setup wizard (local/self-hosted)
 bun run dev         # hot-reload dev server
 bun run start       # run once
 bun test            # unit tests
 bun run typecheck   # tsc --noEmit
+bun run lint        # biome check
+bun run lint:fix    # biome check --write (auto-fix)
+bun run purge       # wipe all persisted data
 ```
 
 ---
@@ -197,8 +202,11 @@ bun run typecheck   # tsc --noEmit
 
 **Self-host first.** Docker is the official deploy target. **Railway** is the recommended platform.
 
-- [ ] Dockerfile + `docker compose` (planned)
-- [ ] Railway template (planned)
+- [x] Dockerfile (multi-stage, non-root, production-ready)
+- [ ] Railway one-click deploy template (planned)
+- [ ] `docker compose` (planned)
+
+For Railway: set the required env vars in the Variables dashboard, mount a persistent volume at `OPENTENTACLES_DATA_DIR`, and deploy the image. No interactive setup needed.
 
 ---
 
