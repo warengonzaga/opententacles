@@ -1,29 +1,33 @@
 import { describe, expect, test } from "bun:test";
-import { createSilentLogger } from "../../src/core/logger.ts";
 import {
-  CopilotOrchestrator,
   type CopilotClientLike,
+  CopilotOrchestrator,
   type CopilotSessionLike,
   type OrchestratorOptions,
 } from "../../src/core/copilot.ts";
+import { createSilentLogger } from "../../src/core/logger.ts";
 import type { Turn } from "../../src/core/memory.ts";
 
 const silentLogger = createSilentLogger();
 
 class FakeSession implements CopilotSessionLike {
-  public deltaHandlers: Array<(e: { data: { deltaContent: string } }) => void> = [];
+  public deltaHandlers: Array<(e: { data: { deltaContent: string } }) => void> =
+    [];
   public idleHandlers: Array<() => void> = [];
   public disconnected = false;
   public sent: string[] = [];
 
-  on(event: string, handler: (...args: any[]) => void): () => void {
+  on(
+    event: string,
+    handler: ((e: { data: { deltaContent: string } }) => void) | (() => void),
+  ): () => void {
     if (event === "assistant.message_delta") {
       this.deltaHandlers.push(handler);
       return () => {
         this.deltaHandlers = this.deltaHandlers.filter((h) => h !== handler);
       };
     }
-    this.idleHandlers.push(handler);
+    this.idleHandlers.push(handler as () => void);
     return () => {
       this.idleHandlers = this.idleHandlers.filter((h) => h !== handler);
     };
@@ -31,7 +35,8 @@ class FakeSession implements CopilotSessionLike {
 
   async sendAndWait({ prompt }: { prompt: string }): Promise<unknown> {
     this.sent.push(prompt);
-    for (const h of this.deltaHandlers) h({ data: { deltaContent: `reply: ${prompt}` } });
+    for (const h of this.deltaHandlers)
+      h({ data: { deltaContent: `reply: ${prompt}` } });
     for (const h of this.idleHandlers) h();
     return undefined;
   }
@@ -43,10 +48,14 @@ class FakeSession implements CopilotSessionLike {
 
 class FakeClient implements CopilotClientLike {
   public created: FakeSession[] = [];
-  public createdConfigs: Array<Parameters<CopilotClientLike["createSession"]>[0]> = [];
+  public createdConfigs: Array<
+    Parameters<CopilotClientLike["createSession"]>[0]
+  > = [];
   public stopped = false;
 
-  async createSession(cfg: Parameters<CopilotClientLike["createSession"]>[0]): Promise<CopilotSessionLike> {
+  async createSession(
+    cfg: Parameters<CopilotClientLike["createSession"]>[0],
+  ): Promise<CopilotSessionLike> {
     this.createdConfigs.push(cfg);
     const s = new FakeSession();
     this.created.push(s);
@@ -59,7 +68,10 @@ class FakeClient implements CopilotClientLike {
   }
 }
 
-function baseOpts(client: CopilotClientLike, overrides: Partial<OrchestratorOptions> = {}): OrchestratorOptions {
+function baseOpts(
+  client: CopilotClientLike,
+  overrides: Partial<OrchestratorOptions> = {},
+): OrchestratorOptions {
   return {
     client,
     model: "gpt-4.1",
@@ -74,7 +86,10 @@ describe("CopilotOrchestrator", () => {
   test("reuses the same session for the same user across messages", async () => {
     const client = new FakeClient();
     let clock = 0;
-    const orch = new CopilotOrchestrator({ ...baseOpts(client), now: () => clock });
+    const orch = new CopilotOrchestrator({
+      ...baseOpts(client),
+      now: () => clock,
+    });
 
     const out: string[] = [];
     const handler = {
@@ -133,7 +148,11 @@ describe("CopilotOrchestrator", () => {
   test("evictIdle drops sessions past the timeout and disconnects them", async () => {
     const client = new FakeClient();
     let clock = 0;
-    const orch = new CopilotOrchestrator({ ...baseOpts(client), idleTimeoutMs: 10_000, now: () => clock });
+    const orch = new CopilotOrchestrator({
+      ...baseOpts(client),
+      idleTimeoutMs: 10_000,
+      now: () => clock,
+    });
 
     const noop = { onDelta: () => {}, onIdle: () => {}, onError: () => {} };
     await orch.send("alice", "hello", noop);
@@ -197,14 +216,24 @@ describe("CopilotOrchestrator", () => {
 // ---------------------------------------------------------------------------
 
 class FakeMemoryStore {
-  public readonly appended: Array<{ ownerId: string; channel: string; role: string; content: string }> = [];
+  public readonly appended: Array<{
+    ownerId: string;
+    channel: string;
+    role: string;
+    content: string;
+  }> = [];
   private readonly preloaded: Turn[];
 
   constructor(preloaded: Turn[] = []) {
     this.preloaded = preloaded;
   }
 
-  appendTurn(ownerId: string, channel: string, role: "user" | "assistant", content: string): void {
+  appendTurn(
+    ownerId: string,
+    channel: string,
+    role: "user" | "assistant",
+    content: string,
+  ): void {
     this.appended.push({ ownerId, channel, role, content });
   }
 
@@ -224,7 +253,8 @@ describe("CopilotOrchestrator — memory integration", () => {
     const store = new FakeMemoryStore();
     const orch = new CopilotOrchestrator({
       ...baseOpts(client),
-      memoryStore: store as unknown as import("../../src/core/memory.ts").MemoryStore,
+      memoryStore:
+        store as unknown as import("../../src/core/memory.ts").MemoryStore,
     });
 
     const noop = { onDelta: () => {}, onIdle: () => {}, onError: () => {} };
@@ -232,7 +262,12 @@ describe("CopilotOrchestrator — memory integration", () => {
 
     expect(store.appended).toEqual([
       { ownerId: "alice", channel: "discord", role: "user", content: "hello" },
-      { ownerId: "alice", channel: "discord", role: "assistant", content: "reply: hello" },
+      {
+        ownerId: "alice",
+        channel: "discord",
+        role: "assistant",
+        content: "reply: hello",
+      },
     ]);
   });
 
@@ -244,7 +279,8 @@ describe("CopilotOrchestrator — memory integration", () => {
     const store = new FakeMemoryStore(preloaded);
     const orch = new CopilotOrchestrator({
       ...baseOpts(client),
-      memoryStore: store as unknown as import("../../src/core/memory.ts").MemoryStore,
+      memoryStore:
+        store as unknown as import("../../src/core/memory.ts").MemoryStore,
       systemMessage: "You are helpful.",
     });
 
@@ -255,7 +291,9 @@ describe("CopilotOrchestrator — memory integration", () => {
     expect(cfg?.systemMessage).toContain("[HISTORY:1]");
     // History must come before the core system instructions.
     const systemMsg = cfg?.systemMessage ?? "";
-    expect(systemMsg.indexOf("[HISTORY:1]")).toBeLessThan(systemMsg.indexOf("You are helpful."));
+    expect(systemMsg.indexOf("[HISTORY:1]")).toBeLessThan(
+      systemMsg.indexOf("You are helpful."),
+    );
   });
 
   test("does not inject history when memoryStore returns no turns", async () => {
@@ -263,7 +301,8 @@ describe("CopilotOrchestrator — memory integration", () => {
     const store = new FakeMemoryStore([]);
     const orch = new CopilotOrchestrator({
       ...baseOpts(client),
-      memoryStore: store as unknown as import("../../src/core/memory.ts").MemoryStore,
+      memoryStore:
+        store as unknown as import("../../src/core/memory.ts").MemoryStore,
       systemMessage: "You are helpful.",
     });
 

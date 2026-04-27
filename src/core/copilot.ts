@@ -46,7 +46,10 @@ interface CachedEntry {
 
 export class CopilotOrchestrator {
   private readonly sessions = new Map<string, CachedEntry>();
-  private readonly channelFactories = new Map<string, (userId: string) => unknown>();
+  private readonly channelFactories = new Map<
+    string,
+    (userId: string) => unknown
+  >();
   private readonly now: () => number;
   private sweeper: ReturnType<typeof setInterval> | null = null;
 
@@ -54,21 +57,28 @@ export class CopilotOrchestrator {
     this.now = opts.now ?? (() => Date.now());
   }
 
-  setPermissionHandlerFactory(channelPrefix: string, factory: (userId: string) => unknown): void {
+  setPermissionHandlerFactory(
+    channelPrefix: string,
+    factory: (userId: string) => unknown,
+  ): void {
     this.channelFactories.set(channelPrefix, factory);
   }
 
   start(): void {
     const interval = Math.max(30_000, Math.floor(this.opts.idleTimeoutMs / 4));
     this.sweeper = setInterval(() => {
-      this.evictIdle().catch((err) => this.opts.logger.error({ err }, "idle eviction failed"));
+      this.evictIdle().catch((err) =>
+        this.opts.logger.error({ err }, "idle eviction failed"),
+      );
     }, interval);
   }
 
   async stop(): Promise<void> {
     if (this.sweeper) clearInterval(this.sweeper);
     this.sweeper = null;
-    const disconnects = [...this.sessions.values()].map((e) => e.session.disconnect());
+    const disconnects = [...this.sessions.values()].map((e) =>
+      e.session.disconnect(),
+    );
     await Promise.allSettled(disconnects);
     this.sessions.clear();
     const errors = await this.opts.client.stop();
@@ -77,7 +87,11 @@ export class CopilotOrchestrator {
     }
   }
 
-  async send(userKey: string, prompt: string, handler: StreamHandler): Promise<void> {
+  async send(
+    userKey: string,
+    prompt: string,
+    handler: StreamHandler,
+  ): Promise<void> {
     const entry = await this.getOrCreate(userKey);
     entry.lastActive = this.now();
 
@@ -100,7 +114,12 @@ export class CopilotOrchestrator {
       idleFired = true;
       // Record the complete assistant response once the turn is done.
       if (assistantBuffer) {
-        this.opts.memoryStore?.appendTurn(ownerId, channel, "assistant", assistantBuffer);
+        this.opts.memoryStore?.appendTurn(
+          ownerId,
+          channel,
+          "assistant",
+          assistantBuffer,
+        );
       }
       void handler.onIdle();
     });
@@ -116,7 +135,12 @@ export class CopilotOrchestrator {
         // If session.idle never fired (e.g., sendAndWait threw), persist any
         // partial assistant response so the user turn is not left dangling.
         if (!idleFired && assistantBuffer) {
-          this.opts.memoryStore?.appendTurn(ownerId, channel, "assistant", assistantBuffer);
+          this.opts.memoryStore?.appendTurn(
+            ownerId,
+            channel,
+            "assistant",
+            assistantBuffer,
+          );
         }
         entry.lastActive = this.now();
         entry.inFlight = null;
@@ -139,7 +163,10 @@ export class CopilotOrchestrator {
       try {
         await entry.session.disconnect();
       } catch (err) {
-        this.opts.logger.warn({ err, userKey: key }, "session disconnect during eviction failed");
+        this.opts.logger.warn(
+          { err, userKey: key },
+          "session disconnect during eviction failed",
+        );
       }
       this.opts.logger.debug({ userKey: key }, "evicted idle session");
     }
@@ -180,7 +207,9 @@ export class CopilotOrchestrator {
       streaming: true,
       onPermissionRequest,
       ...(this.opts.mcpServers ? { mcpServers: this.opts.mcpServers } : {}),
-      ...(this.opts.workingDirectory ? { workingDirectory: this.opts.workingDirectory } : {}),
+      ...(this.opts.workingDirectory
+        ? { workingDirectory: this.opts.workingDirectory }
+        : {}),
       ...(sessionSystemMessage ? { systemMessage: sessionSystemMessage } : {}),
     });
     const entry: CachedEntry = {
