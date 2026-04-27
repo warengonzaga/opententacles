@@ -92,6 +92,7 @@ Configuration is split by sensitivity:
 |---|---|---|
 | `DISCORD_BOT_TOKEN` | ✅ Yes | Your Discord bot secret token |
 | `DISCORD_OWNER_ID` | ✅ Yes (required when `DISCORD_BOT_TOKEN` is set) | Discord user ID of the bot owner. This is required to prevent the bot from accepting messages from anyone and burning your Copilot quota. |
+| `GH_TOKEN` | ✅ Yes for managed deploys (Railway, Docker) | GitHub Personal Access Token used by Copilot and the GitHub MCP server. Locally, `gh auth login` is used instead. Needs `repo`, `read:org`, and Copilot access. |
 | `GITHUB_NAMESPACES` | Optional | Comma-separated GitHub orgs/users you control (e.g. `warengonzaga,wgtechlabs`) — used to place cloned repos in first-party paths |
 | `OPENTENTACLES_LOG_LEVEL` | Optional | `debug` \| `info` \| `warn` \| `error` \| `silent` (default: `info`) |
 | `OPENTENTACLES_DATA_DIR` | Optional | Override the data directory (default: `~/.opententacles`) |
