@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { ConfigEngine } from "@wgtechlabs/config-engine";
 import { SecretsEngine } from "@wgtechlabs/secrets-engine";
 import { z } from "zod";
-import { resolveConfigDir } from "./paths.ts";
+import { resolveConfigDir, resolveSecretsPath } from "./paths.ts";
 
 /**
  * Non-secret configuration — stored by `@wgtechlabs/config-engine` in a SQLite
@@ -112,16 +112,19 @@ export async function loadConfig(): Promise<LoadedConfig> {
     schema: ConfigSchema,
   });
 
-  const secrets = await SecretsEngine.open();
+  const secretsPath = resolveSecretsPath();
+  const secrets = await SecretsEngine.open(
+    secretsPath ? { path: secretsPath } : undefined,
+  );
   const storedBotToken = (await secrets.get("discord.botToken")) ?? "";
 
   const envOverrides = readEnvOverrides();
 
   // Backwards-compat migration: github.owners (old key) → github.namespaces
   const storeRaw = engine.store as Record<string, unknown>;
-  const githubRaw = storeRaw["github"] as Record<string, unknown> | undefined;
-  if (githubRaw && !githubRaw["namespaces"] && Array.isArray(githubRaw["owners"])) {
-    githubRaw["namespaces"] = githubRaw["owners"];
+  const githubRaw = storeRaw.github as Record<string, unknown> | undefined;
+  if (githubRaw && !githubRaw.namespaces && Array.isArray(githubRaw.owners)) {
+    githubRaw.namespaces = githubRaw.owners;
   }
 
   // Priority: env vars > stored config > defaults

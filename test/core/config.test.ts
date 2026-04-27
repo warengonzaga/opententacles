@@ -121,7 +121,9 @@ describe("readEnvOverrides", () => {
     // Only level should be set; format is intentionally absent so the merge
     // in loadConfig can apply the stored/default format.
     expect(result.config.log as unknown).toEqual({ level: "debug" });
-    expect((result.config.log as Record<string, unknown>)["format"]).toBeUndefined();
+    expect(
+      (result.config.log as Record<string, unknown>).format,
+    ).toBeUndefined();
   });
 
   test("ignores invalid log level", () => {
