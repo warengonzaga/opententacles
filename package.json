@@ -28,7 +28,7 @@
     "@wgtechlabs/log-engine": "^2.3.1",
     "@wgtechlabs/secrets-engine": "^2.0.0",
     "discord.js": "^14.26.3",
-    "zod": "^3.23.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
