@@ -125,8 +125,11 @@ export async function setupCommand(): Promise<void> {
 
   try {
     const secrets = await SecretsEngine.open();
-    if (discordToken) await secrets.set("discord.botToken", discordToken as string);
-    await secrets.close();
+    try {
+      if (discordToken) await secrets.set("discord.botToken", discordToken as string);
+    } finally {
+      await secrets.close();
+    }
 
     const channels = parseList(channelsRaw as string);
     const owners = parseList(ownersRaw as string ?? "");
