@@ -18,18 +18,29 @@ class FakeSession implements CopilotSessionLike {
   public sent: string[] = [];
 
   on(
+    event: "assistant.message_delta",
+    handler: (e: { data: { deltaContent: string } }) => void,
+  ): () => void;
+  on(event: "session.idle", handler: () => void): () => void;
+  on(
     event: string,
     handler: ((e: { data: { deltaContent: string } }) => void) | (() => void),
   ): () => void {
     if (event === "assistant.message_delta") {
-      this.deltaHandlers.push(handler);
+      const deltaHandler = handler as (e: {
+        data: { deltaContent: string };
+      }) => void;
+      this.deltaHandlers.push(deltaHandler);
       return () => {
-        this.deltaHandlers = this.deltaHandlers.filter((h) => h !== handler);
+        this.deltaHandlers = this.deltaHandlers.filter(
+          (h) => h !== deltaHandler,
+        );
       };
     }
-    this.idleHandlers.push(handler as () => void);
+    const idleHandler = handler as () => void;
+    this.idleHandlers.push(idleHandler);
     return () => {
-      this.idleHandlers = this.idleHandlers.filter((h) => h !== handler);
+      this.idleHandlers = this.idleHandlers.filter((h) => h !== idleHandler);
     };
   }
 
