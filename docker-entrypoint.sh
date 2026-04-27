@@ -10,7 +10,7 @@ DATA_DIR="${OPENTENTACLES_DATA_DIR:-/data}"
 if [ "$(id -u)" = "0" ]; then
   mkdir -p "$DATA_DIR"
   chown -R opententacles:opententacles "$DATA_DIR"
-  exec su-exec opententacles:opententacles "$@"
+  exec gosu opententacles:opententacles "$@"
 fi
 
 exec "$@"
