@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+
+## [0.2.0] - 2026-04-27
+
+### Added
+
+- add CLI entry point and extend setup with config engine
+- add GitHub helper and improve session orchestration
+- add interactive setup wizard for local self-hosting
+- add env example file and gitignore env secrets
+- add Contributor License Agreement
+
+### Changed
+
+- throw on invariant violation in stream buffer flush
+- migrate github.owners to namespaces with backwards compat
+- add dependabot config for npm, actions, and docker
+- refactor entrypoint, channel registry, and purge command
+- refactor channel internals and stream handling
+- refactor memory store API and update tests
+- extend env overrides and update config tests
+- improve context and value serialization
+- improve path resolution and database initialization
+- update biome linting and formatting config
+- migrate config loader to SQLite and env var overrides
+- add Biome linter with lint and lint:fix scripts
+- rename OpenTentacles to Open Tentacles in source
+
 ## [0.1.0] - 2026-04-27
 
 ### Added
