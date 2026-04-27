@@ -20,6 +20,10 @@ FROM oven/bun:1-alpine AS production
 
 WORKDIR /app
 
+# Install su-exec so the entrypoint can drop privileges from root → opententacles
+# after fixing volume ownership at runtime (needed for Railway volume mounts)
+RUN apk add --no-cache su-exec
+
 # Create non-root user for security (Trivy DS002)
 RUN addgroup --gid 1001 opententacles && \
     adduser --uid 1001 --ingroup opententacles --disabled-password --no-create-home opententacles
@@ -32,12 +36,12 @@ COPY --from=builder /app/bun.lock ./bun.lock
 # Install production deps only
 RUN bun install --production --frozen-lockfile
 
-# Pre-create the data directory and grant ownership to the non-root user
-# so Railway volume mounts at /data are writable
-RUN mkdir -p /data && chown opententacles:opententacles /data
-
-USER opententacles
+# Entrypoint script runs as root to fix data dir ownership (Railway mounts
+# volumes as root-owned), then drops to the opententacles user via su-exec.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV NODE_ENV=production
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["bun", "run", "dist/cli.js", "start"]
