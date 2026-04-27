@@ -1,4 +1,5 @@
 import type { Logger } from "./logger.ts";
+import type { MemoryStore } from "./memory.ts";
 import type { StreamHandler } from "./types.ts";
 
 export interface CopilotSessionLike {
@@ -32,6 +33,7 @@ export interface OrchestratorOptions {
   mcpServers?: Record<string, unknown>;
   workingDirectory?: string;
   systemMessage?: string;
+  memoryStore?: MemoryStore;
   logger: Logger;
   now?: () => number;
 }
@@ -44,16 +46,16 @@ interface CachedEntry {
 
 export class CopilotOrchestrator {
   private readonly sessions = new Map<string, CachedEntry>();
+  private readonly channelFactories = new Map<string, (userId: string) => unknown>();
   private readonly now: () => number;
   private sweeper: ReturnType<typeof setInterval> | null = null;
-  private permissionHandlerFactory?: (userKey: string) => unknown;
 
   constructor(private readonly opts: OrchestratorOptions) {
     this.now = opts.now ?? (() => Date.now());
   }
 
-  setPermissionHandlerFactory(factory: (userKey: string) => unknown): void {
-    this.permissionHandlerFactory = factory;
+  setPermissionHandlerFactory(channelPrefix: string, factory: (userId: string) => unknown): void {
+    this.channelFactories.set(channelPrefix, factory);
   }
 
   start(): void {
@@ -81,13 +83,25 @@ export class CopilotOrchestrator {
 
     const { session } = entry;
     let idleFired = false;
+    let assistantBuffer = "";
+
+    const ownerId = extractOwnerId(userKey);
+    const channel = extractChannel(userKey);
+
+    // Record the user's prompt before sending.
+    this.opts.memoryStore?.appendTurn(ownerId, channel, "user", prompt);
 
     const offDelta = session.on("assistant.message_delta", (e) => {
+      assistantBuffer += e.data.deltaContent;
       void handler.onDelta(e.data.deltaContent);
     });
     const offIdle = session.on("session.idle", () => {
       if (idleFired) return;
       idleFired = true;
+      // Record the complete assistant response once the turn is done.
+      if (assistantBuffer) {
+        this.opts.memoryStore?.appendTurn(ownerId, channel, "assistant", assistantBuffer);
+      }
       void handler.onIdle();
     });
 
@@ -99,6 +113,11 @@ export class CopilotOrchestrator {
       } finally {
         offDelta();
         offIdle();
+        // If session.idle never fired (e.g., sendAndWait threw), persist any
+        // partial assistant response so the user turn is not left dangling.
+        if (!idleFired && assistantBuffer) {
+          this.opts.memoryStore?.appendTurn(ownerId, channel, "assistant", assistantBuffer);
+        }
         entry.lastActive = this.now();
         entry.inFlight = null;
       }
@@ -138,8 +157,23 @@ export class CopilotOrchestrator {
     const existing = this.sessions.get(userKey);
     if (existing) return existing;
 
+    const channelFactory = this.channelFactories.get(extractChannel(userKey));
     const onPermissionRequest =
-      this.permissionHandlerFactory?.(userKey) ?? this.opts.permissionHandler;
+      channelFactory?.(extractOwnerId(userKey)) ?? this.opts.permissionHandler;
+
+    // Inject cross-channel history on cold start.
+    let sessionSystemMessage = this.opts.systemMessage;
+    if (this.opts.memoryStore) {
+      const ownerId = extractOwnerId(userKey);
+      const turns = this.opts.memoryStore.loadRecent(ownerId);
+      const historyBlock = this.opts.memoryStore.formatForInjection(turns);
+      if (historyBlock) {
+        // History goes before the core system instructions so model constraints take precedence.
+        sessionSystemMessage = sessionSystemMessage
+          ? `${historyBlock}\n\n${sessionSystemMessage}`
+          : historyBlock;
+      }
+    }
 
     const session = await this.opts.client.createSession({
       model: this.opts.model,
@@ -147,7 +181,7 @@ export class CopilotOrchestrator {
       onPermissionRequest,
       ...(this.opts.mcpServers ? { mcpServers: this.opts.mcpServers } : {}),
       ...(this.opts.workingDirectory ? { workingDirectory: this.opts.workingDirectory } : {}),
-      ...(this.opts.systemMessage ? { systemMessage: this.opts.systemMessage } : {}),
+      ...(sessionSystemMessage ? { systemMessage: sessionSystemMessage } : {}),
     });
     const entry: CachedEntry = {
       session,
@@ -158,4 +192,16 @@ export class CopilotOrchestrator {
     this.opts.logger.debug({ userKey }, "created new Copilot session");
     return entry;
   }
+}
+
+/** Strips the channel prefix from a namespaced userKey (e.g. "discord:123" → "123"). */
+function extractOwnerId(userKey: string): string {
+  const idx = userKey.indexOf(":");
+  return idx >= 0 ? userKey.slice(idx + 1) : userKey;
+}
+
+/** Returns the channel portion of a namespaced userKey (e.g. "discord:123" → "discord"). */
+function extractChannel(userKey: string): string {
+  const idx = userKey.indexOf(":");
+  return idx >= 0 ? userKey.slice(0, idx) : "default";
 }

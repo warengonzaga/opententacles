@@ -1,0 +1,55 @@
+name: Package Build
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Perform dry run without publishing'
+        type: boolean
+        default: true
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+jobs:
+  publish:
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build & Publish Package
+        uses: wgtechlabs/package-build-flow-action@3db324db51d61b91e997e6ae384355eabddcff1a # v2.0.1
+        with:
+          monorepo: 'false'
+          package-manager: 'bun'
+          registry: 'both'
+          access: 'public'
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          publish-enabled: 'true'
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}
+          build-script: 'build'
+          audit-enabled: 'true'
+          audit-level: 'high'
+          fail-on-audit: 'false'

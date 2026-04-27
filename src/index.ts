@@ -1,12 +1,14 @@
 import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { approveAll, CopilotClient } from "@github/copilot-sdk";
-import { channelConfig, loadConfig, type AppConfig, type AppSecrets } from "./core/config.ts";
+import { channelConfig, loadConfig, resolveRegisteredUser, type AppConfig, type AppSecrets } from "./core/config.ts";
 import { CopilotOrchestrator, type CopilotClientLike } from "./core/copilot.ts";
 import { openDb } from "./core/db.ts";
 import { resolveGhToken } from "./core/gh.ts";
 import { createLogger } from "./core/logger.ts";
-import { resolveWorkspaceDir } from "./core/paths.ts";
-import type { Channel } from "./core/types.ts";
+import { MemoryStore } from "./core/memory.ts";
+import { resolveDataDir, resolveWorkspaceDir } from "./core/paths.ts";
+import type { Channel, ScopedCopilot } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
 function buildSystemMessage(workspaceDir: string, owners: string[]): string {
@@ -46,7 +48,10 @@ async function main(): Promise<void> {
   mkdirSync(workspaceDir, { recursive: true });
   logger.info({ workspaceDir }, "workspace ready");
 
-  openDb();
+  const dataDir = resolveDataDir();
+  mkdirSync(dataDir, { recursive: true });
+  const db = openDb(join(dataDir, "opententacles.db"));
+  const memoryStore = new MemoryStore(db);
 
   const ghLogger = logger.child({ component: "gh" });
   const ghToken = await resolveGhToken(ghLogger);
@@ -76,6 +81,7 @@ async function main(): Promise<void> {
     mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
     workingDirectory: workspaceDir,
     systemMessage,
+    memoryStore,
     logger: logger.child({ component: "copilot" }),
   });
   orchestrator.start();
@@ -88,11 +94,19 @@ async function main(): Promise<void> {
   const started: Channel[] = [];
   for (const channel of channels) {
     const childLogger = logger.child({ channel: channel.name });
+    const channelName = channel.name;
+    const scopedCopilot: ScopedCopilot = {
+      send: (userId, prompt, handler) =>
+        orchestrator.send(`${channelName}:${userId}`, prompt, handler),
+      setPermissionHandlerFactory: (factory) =>
+        orchestrator.setPermissionHandlerFactory(channelName, factory),
+    };
     try {
       await channel.start({
-        copilot: orchestrator,
+        copilot: scopedCopilot,
         logger: childLogger,
-        config: channelConfig(config, secrets, channel.name),
+        config: channelConfig(config, secrets, channelName),
+        registeredUserId: resolveRegisteredUser(config, channelName),
       });
       started.push(channel);
       childLogger.info("channel started");
@@ -128,10 +142,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+export { main as startBot };
 
 // Preserve type re-exports in case other modules import them via this entry.
 export type { AppConfig, AppSecrets };

@@ -18,7 +18,7 @@ export const ConfigSchema = z.object({
     enabled: z.array(z.string()),
   }),
   discord: z.object({
-    allowlist: z.array(z.string()),
+    registeredOwner: z.string().optional(),
   }),
   log: z.object({
     level: z.enum(["debug", "info", "warn", "error", "silent"]),
@@ -37,7 +37,7 @@ export const SECRET_KEYS = ["discord.botToken"] as const;
 export const CONFIG_DEFAULTS: AppConfig = {
   copilot: { model: "gpt-4.1", idleTimeoutMinutes: 30 },
   channels: { enabled: ["discord"] },
-  discord: { allowlist: [] },
+  discord: { registeredOwner: undefined },
   log: { level: "info", format: "text" },
   github: { owners: [] },
 };
@@ -93,10 +93,17 @@ export function channelConfig(
   name: string,
 ): unknown {
   if (name === "discord") {
-    return {
-      botToken: secrets.discord.botToken,
-      allowlist: config.discord.allowlist,
-    };
+    return { botToken: secrets.discord.botToken };
   }
   return {};
+}
+
+/**
+ * Returns the single authorized user ID for the given channel, or null if none
+ * is registered (unrestricted). The framework uses this to populate
+ * `ChannelContext.registeredUserId` so channels don't parse config themselves.
+ */
+export function resolveRegisteredUser(config: AppConfig, channelName: string): string | null {
+  if (channelName === "discord") return config.discord.registeredOwner ?? null;
+  return null;
 }

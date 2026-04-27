@@ -7,8 +7,7 @@ import {
 import { z } from "zod";
 
 export const DiscordChannelConfig = z.object({
-  botToken: z.string().min(1, "discord.botToken not set. Run `bun run setup`."),
-  allowlist: z.array(z.string()).default([]),
+  botToken: z.string().min(1, "discord.botToken not set. Run `opententacles setup`."),
 });
 export type DiscordChannelConfigT = z.infer<typeof DiscordChannelConfig>;
 

@@ -7,7 +7,7 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
     expect(cfg.copilot.model).toBe("gpt-4.1");
     expect(cfg.copilot.idleTimeoutMinutes).toBe(30);
     expect(cfg.channels.enabled).toEqual(["discord"]);
-    expect(cfg.discord.allowlist).toEqual([]);
+    expect(cfg.discord.registeredOwner).toBeUndefined();
     expect(cfg.log.level).toBe("info");
     expect(cfg.log.format).toBe("text");
     expect(cfg.github.owners).toEqual([]);
@@ -38,14 +38,14 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
     const cfg: AppConfig = ConfigSchema.parse({
       copilot: { model: "gpt-4o", idleTimeoutMinutes: 60 },
       channels: { enabled: ["discord", "telegram"] },
-      discord: { allowlist: ["123"] },
+      discord: { registeredOwner: "123" },
       log: { level: "debug", format: "json" },
       github: { owners: ["warengonzaga"] },
     });
     expect(cfg.copilot.model).toBe("gpt-4o");
     expect(cfg.copilot.idleTimeoutMinutes).toBe(60);
     expect(cfg.channels.enabled).toEqual(["discord", "telegram"]);
-    expect(cfg.discord.allowlist).toEqual(["123"]);
+    expect(cfg.discord.registeredOwner).toBe("123");
     expect(cfg.log.level).toBe("debug");
     expect(cfg.log.format).toBe("json");
     expect(cfg.github.owners).toEqual(["warengonzaga"]);
@@ -55,14 +55,13 @@ describe("ConfigSchema + CONFIG_DEFAULTS", () => {
 describe("channelConfig", () => {
   const config: AppConfig = {
     ...CONFIG_DEFAULTS,
-    discord: { allowlist: ["123"] },
+    discord: { registeredOwner: "123" },
   };
   const secrets: AppSecrets = { discord: { botToken: "bot-tok" } };
 
   test("returns discord channel config from merged stores", () => {
     expect(channelConfig(config, secrets, "discord")).toEqual({
       botToken: "bot-tok",
-      allowlist: ["123"],
     });
   });
 

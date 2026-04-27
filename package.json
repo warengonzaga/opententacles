@@ -1,20 +1,26 @@
 {
   "name": "opententacles",
   "version": "0.1.0",
-  "description": "GitHub Copilot in your chat apps — a pluggable channel framework. Discord first, Telegram next.",
+  "description": "A GitHub-native AI agent framework that brings Copilot to every place open-source work happens.",
   "type": "module",
-  "private": true,
-  "main": "src/index.ts",
+  "main": "dist/cli.js",
+  "bin": {
+    "opententacles": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "setup": "bun run src/setup.ts",
-    "purge": "bun run src/purge.ts",
-    "dev": "bun --hot run src/index.ts",
-    "start": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun --minify",
+    "setup": "bun run src/cli.ts setup",
+    "purge": "bun run src/cli.ts purge",
+    "dev": "bun --hot run src/cli.ts start",
+    "start": "bun run src/cli.ts start",
+    "build": "bun build src/cli.ts --outdir dist --target bun --minify",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clack/prompts": "^1.2.0",
     "@github/copilot-sdk": "^0.1.0",
     "@wgtechlabs/config-engine": "^0.1.0",
     "@wgtechlabs/log-engine": "^2.3.1",
@@ -34,5 +40,5 @@
     "url": "https://github.com/warengonzaga/opententacles.git"
   },
   "author": "Waren Gonzaga",
-  "license": "MIT"
+  "license": "GPL-3.0"
 }

@@ -6,6 +6,7 @@ import {
   type CopilotSessionLike,
   type OrchestratorOptions,
 } from "../../src/core/copilot.ts";
+import type { Turn } from "../../src/core/memory.ts";
 
 const silentLogger = createSilentLogger();
 
@@ -42,9 +43,11 @@ class FakeSession implements CopilotSessionLike {
 
 class FakeClient implements CopilotClientLike {
   public created: FakeSession[] = [];
+  public createdConfigs: Array<Parameters<CopilotClientLike["createSession"]>[0]> = [];
   public stopped = false;
 
-  async createSession(_cfg: { model?: string; streaming?: boolean; onPermissionRequest: unknown }): Promise<CopilotSessionLike> {
+  async createSession(cfg: Parameters<CopilotClientLike["createSession"]>[0]): Promise<CopilotSessionLike> {
+    this.createdConfigs.push(cfg);
     const s = new FakeSession();
     this.created.push(s);
     return s;
@@ -186,5 +189,112 @@ describe("CopilotOrchestrator", () => {
     expect(orch.size()).toBe(0);
     expect(client.stopped).toBe(true);
     for (const s of client.created) expect(s.disconnected).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Memory integration
+// ---------------------------------------------------------------------------
+
+class FakeMemoryStore {
+  public readonly appended: Array<{ ownerId: string; channel: string; role: string; content: string }> = [];
+  private readonly preloaded: Turn[];
+
+  constructor(preloaded: Turn[] = []) {
+    this.preloaded = preloaded;
+  }
+
+  appendTurn(ownerId: string, channel: string, role: "user" | "assistant", content: string): void {
+    this.appended.push({ ownerId, channel, role, content });
+  }
+
+  loadRecent(_ownerId: string): Turn[] {
+    return this.preloaded;
+  }
+
+  formatForInjection(turns: Turn[]): string {
+    if (turns.length === 0) return "";
+    return `[HISTORY:${turns.length}]`;
+  }
+}
+
+describe("CopilotOrchestrator — memory integration", () => {
+  test("records user and assistant turns via memoryStore", async () => {
+    const client = new FakeClient();
+    const store = new FakeMemoryStore();
+    const orch = new CopilotOrchestrator({
+      ...baseOpts(client),
+      memoryStore: store as unknown as import("../../src/core/memory.ts").MemoryStore,
+    });
+
+    const noop = { onDelta: () => {}, onIdle: () => {}, onError: () => {} };
+    await orch.send("discord:alice", "hello", noop);
+
+    expect(store.appended).toEqual([
+      { ownerId: "alice", channel: "discord", role: "user", content: "hello" },
+      { ownerId: "alice", channel: "discord", role: "assistant", content: "reply: hello" },
+    ]);
+  });
+
+  test("injects history into systemMessage before core instructions on cold-start", async () => {
+    const preloaded: Turn[] = [
+      { role: "user", content: "prior msg", channel: "discord", createdAt: 0 },
+    ];
+    const client = new FakeClient();
+    const store = new FakeMemoryStore(preloaded);
+    const orch = new CopilotOrchestrator({
+      ...baseOpts(client),
+      memoryStore: store as unknown as import("../../src/core/memory.ts").MemoryStore,
+      systemMessage: "You are helpful.",
+    });
+
+    const noop = { onDelta: () => {}, onIdle: () => {}, onError: () => {} };
+    await orch.send("discord:alice", "hi", noop);
+
+    const cfg = client.createdConfigs[0];
+    expect(cfg?.systemMessage).toContain("[HISTORY:1]");
+    // History must come before the core system instructions.
+    const systemMsg = cfg?.systemMessage ?? "";
+    expect(systemMsg.indexOf("[HISTORY:1]")).toBeLessThan(systemMsg.indexOf("You are helpful."));
+  });
+
+  test("does not inject history when memoryStore returns no turns", async () => {
+    const client = new FakeClient();
+    const store = new FakeMemoryStore([]);
+    const orch = new CopilotOrchestrator({
+      ...baseOpts(client),
+      memoryStore: store as unknown as import("../../src/core/memory.ts").MemoryStore,
+      systemMessage: "You are helpful.",
+    });
+
+    const noop = { onDelta: () => {}, onIdle: () => {}, onError: () => {} };
+    await orch.send("discord:alice", "hi", noop);
+
+    const cfg = client.createdConfigs[0];
+    expect(cfg?.systemMessage).toBe("You are helpful.");
+  });
+
+  test("channel-scoped permission factories are isolated per channel", async () => {
+    const client = new FakeClient();
+    const orch = new CopilotOrchestrator(baseOpts(client));
+
+    const discordKeys: string[] = [];
+    const telegramKeys: string[] = [];
+
+    orch.setPermissionHandlerFactory("discord", (userId) => {
+      discordKeys.push(userId);
+      return { channel: "discord", userId };
+    });
+    orch.setPermissionHandlerFactory("telegram", (userId) => {
+      telegramKeys.push(userId);
+      return { channel: "telegram", userId };
+    });
+
+    const noop = { onDelta: () => {}, onIdle: () => {}, onError: () => {} };
+    await orch.send("discord:alice", "hi", noop);
+    await orch.send("telegram:bob", "hi", noop);
+
+    expect(discordKeys).toEqual(["alice"]);
+    expect(telegramKeys).toEqual(["bob"]);
   });
 });
