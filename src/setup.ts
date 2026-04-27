@@ -134,7 +134,8 @@ export async function setupCommand(): Promise<void> {
     const channels = parseList(channelsRaw as string);
     const owners = parseList(ownersRaw as string ?? "");
 
-    if (newUserId) engine.set("discord.registeredOwner", newUserId);
+    // Setting undefined clears the key, effectively removing the restriction.
+    engine.set("discord.registeredOwner", newUserId);
     engine.set("channels.enabled", channels);
     engine.set("github.owners", owners);
     engine.set("copilot.model", model as string);

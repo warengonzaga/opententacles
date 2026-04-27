@@ -46,16 +46,16 @@ interface CachedEntry {
 
 export class CopilotOrchestrator {
   private readonly sessions = new Map<string, CachedEntry>();
+  private readonly channelFactories = new Map<string, (userId: string) => unknown>();
   private readonly now: () => number;
   private sweeper: ReturnType<typeof setInterval> | null = null;
-  private permissionHandlerFactory?: (userKey: string) => unknown;
 
   constructor(private readonly opts: OrchestratorOptions) {
     this.now = opts.now ?? (() => Date.now());
   }
 
-  setPermissionHandlerFactory(factory: (userKey: string) => unknown): void {
-    this.permissionHandlerFactory = factory;
+  setPermissionHandlerFactory(channelPrefix: string, factory: (userId: string) => unknown): void {
+    this.channelFactories.set(channelPrefix, factory);
   }
 
   start(): void {
@@ -157,8 +157,9 @@ export class CopilotOrchestrator {
     const existing = this.sessions.get(userKey);
     if (existing) return existing;
 
+    const channelFactory = this.channelFactories.get(extractChannel(userKey));
     const onPermissionRequest =
-      this.permissionHandlerFactory?.(userKey) ?? this.opts.permissionHandler;
+      channelFactory?.(extractOwnerId(userKey)) ?? this.opts.permissionHandler;
 
     // Inject cross-channel history on cold start.
     let sessionSystemMessage = this.opts.systemMessage;
@@ -167,8 +168,9 @@ export class CopilotOrchestrator {
       const turns = this.opts.memoryStore.loadRecent(ownerId);
       const historyBlock = this.opts.memoryStore.formatForInjection(turns);
       if (historyBlock) {
+        // History goes before the core system instructions so model constraints take precedence.
         sessionSystemMessage = sessionSystemMessage
-          ? `${sessionSystemMessage}\n\n${historyBlock}`
+          ? `${historyBlock}\n\n${sessionSystemMessage}`
           : historyBlock;
       }
     }

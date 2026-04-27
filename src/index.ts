@@ -99,12 +99,7 @@ async function main(): Promise<void> {
       send: (userId, prompt, handler) =>
         orchestrator.send(`${channelName}:${userId}`, prompt, handler),
       setPermissionHandlerFactory: (factory) =>
-        orchestrator.setPermissionHandlerFactory((namespacedKey) => {
-          const userId = namespacedKey.startsWith(`${channelName}:`)
-            ? namespacedKey.slice(channelName.length + 1)
-            : namespacedKey;
-          return factory(userId);
-        }),
+        orchestrator.setPermissionHandlerFactory(channelName, factory),
     };
     try {
       await channel.start({

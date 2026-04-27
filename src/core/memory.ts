@@ -10,6 +10,7 @@ export interface Turn {
 const MAX_TURNS_DEFAULT = 50;
 
 type TurnRow = {
+  id: number;
   role: string;
   content: string;
   channel: string;
@@ -37,9 +38,22 @@ export class MemoryStore {
   ) {}
 
   appendTurn(ownerId: string, channel: string, role: "user" | "assistant", content: string): void {
+    const createdAt = Date.now();
     this.db.run(
       "INSERT INTO conversation_turns (owner_id, channel, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-      [ownerId, channel, role, content, Date.now()],
+      [ownerId, channel, role, content, createdAt],
+    );
+    // Compact: keep only the most recent maxTurns rows per owner to bound disk usage.
+    this.db.run(
+      `DELETE FROM conversation_turns
+       WHERE owner_id = ?
+         AND id NOT IN (
+           SELECT id FROM conversation_turns
+           WHERE owner_id = ?
+           ORDER BY created_at DESC, id DESC
+           LIMIT ?
+         )`,
+      [ownerId, ownerId, this.maxTurns],
     );
   }
 
@@ -50,10 +64,10 @@ export class MemoryStore {
   loadRecent(ownerId: string): Turn[] {
     const rows = this.db
       .query<TurnRow, [string, number]>(
-        `SELECT role, content, channel, created_at
+        `SELECT id, role, content, channel, created_at
          FROM conversation_turns
          WHERE owner_id = ?
-         ORDER BY created_at DESC
+         ORDER BY created_at DESC, id DESC
          LIMIT ?`,
       )
       .all(ownerId, this.maxTurns);
