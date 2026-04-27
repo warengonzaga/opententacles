@@ -1,0 +1,78 @@
+import type { Database } from "bun:sqlite";
+
+export interface Turn {
+  role: "user" | "assistant";
+  content: string;
+  channel: string;
+  createdAt: number;
+}
+
+const MAX_TURNS_DEFAULT = 50;
+
+type TurnRow = {
+  role: string;
+  content: string;
+  channel: string;
+  created_at: number;
+};
+
+/**
+ * SQLite-backed conversation turn store.
+ *
+ * Turns are stored by raw `ownerId` (not channel-scoped) so that history is
+ * shared across channels — Discord and Telegram sessions for the same owner
+ * see the same conversation history on cold start.
+ *
+ * The `channel` column is metadata only — used for debugging and future
+ * compactor context, not for partitioning reads.
+ */
+export class MemoryStore {
+  constructor(
+    private readonly db: Database,
+    private readonly maxTurns = MAX_TURNS_DEFAULT,
+  ) {}
+
+  appendTurn(ownerId: string, channel: string, role: "user" | "assistant", content: string): void {
+    this.db.run(
+      "INSERT INTO conversation_turns (owner_id, channel, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+      [ownerId, channel, role, content, Date.now()],
+    );
+  }
+
+  /**
+   * Returns up to `maxTurns` most recent turns for the owner, in chronological
+   * order (oldest → newest), ready for injection into a system message.
+   */
+  loadRecent(ownerId: string): Turn[] {
+    const rows = this.db
+      .query<TurnRow, [string, number]>(
+        `SELECT role, content, channel, created_at
+         FROM conversation_turns
+         WHERE owner_id = ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(ownerId, this.maxTurns);
+
+    return rows.reverse().map((r) => ({
+      role: r.role as "user" | "assistant",
+      content: r.content,
+      channel: r.channel,
+      createdAt: r.created_at,
+    }));
+  }
+
+  /**
+   * Formats turns into a history block suitable for prepending to a Copilot
+   * system message on cold-start session creation.
+   */
+  formatForInjection(turns: Turn[]): string {
+    if (turns.length === 0) return "";
+    const lines = ["--- Previous conversation history (for context) ---"];
+    for (const t of turns) {
+      lines.push(`${t.role === "user" ? "User" : "Assistant"}: ${t.content}`);
+    }
+    lines.push("--- End of history ---");
+    return lines.join("\n");
+  }
+}
