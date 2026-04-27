@@ -6,6 +6,5 @@ data
 docs
 test
 *.md
-*.toml
 .env
 .env.*
