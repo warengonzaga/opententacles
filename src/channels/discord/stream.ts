@@ -82,12 +82,12 @@ export class DiscordStreamBuffer {
     const chunks = splitForDiscord(this.buffer, this.maxLen);
     this.buffer = "";
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i]!;
-      let target = this.messages[this.messages.length - 1]!;
+    for (const [i, chunk] of chunks.entries()) {
+      const target = this.messages.at(-1);
+      if (target === undefined) break;
       if (i > 0) {
-        target = await this.sink.reply(chunk);
-        this.messages.push(target);
+        const next = await this.sink.reply(chunk);
+        this.messages.push(next);
       } else {
         await target.edit(chunk);
       }
@@ -99,7 +99,10 @@ export class DiscordStreamBuffer {
   }
 }
 
-export function splitForDiscord(text: string, maxLen = DISCORD_MAX_LEN): string[] {
+export function splitForDiscord(
+  text: string,
+  maxLen = DISCORD_MAX_LEN,
+): string[] {
   if (text.length <= maxLen) return [text];
   const out: string[] = [];
   let remaining = text;

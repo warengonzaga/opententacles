@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   DiscordStreamBuffer,
-  splitForDiscord,
   type EditableMessage,
   type OverflowSink,
+  splitForDiscord,
 } from "../../../src/channels/discord/stream.ts";
 
 function makeFakeMessage() {
@@ -120,7 +120,10 @@ describe("DiscordStreamBuffer", () => {
   test("spills into overflow replies when content exceeds maxLen", async () => {
     const { msg, edits } = makeFakeMessage();
     const { sink, replies } = makeFakeSink();
-    const buf = new DiscordStreamBuffer(msg, sink, { flushMs: 100, maxLen: 50 });
+    const buf = new DiscordStreamBuffer(msg, sink, {
+      flushMs: 100,
+      maxLen: 50,
+    });
 
     buf.append("a".repeat(120));
     await buf.finalize();

@@ -66,7 +66,10 @@ export class DiscordPermissionBroker {
           { userId, kind: request.kind },
           "permission: no DM channel known for user; denying",
         );
-        return { kind: "denied-interactively-by-user", feedback: "no DM channel" };
+        return {
+          kind: "denied-interactively-by-user",
+          feedback: "no DM channel",
+        };
       }
 
       const nonce = `${Date.now().toString(36)}${(this.nonceCounter++).toString(36)}`;
@@ -93,11 +96,17 @@ export class DiscordPermissionBroker {
 
       let messageId: string;
       try {
-        const sent = await this.rest.sendMessage(channelId, { content, components });
+        const sent = await this.rest.sendMessage(channelId, {
+          content,
+          components,
+        });
         messageId = sent.id;
       } catch (err) {
         this.logger.error({ err, userId }, "permission: failed to post prompt");
-        return { kind: "denied-interactively-by-user", feedback: "prompt post failed" };
+        return {
+          kind: "denied-interactively-by-user",
+          feedback: "prompt post failed",
+        };
       }
 
       this.logger.info(
@@ -156,7 +165,10 @@ export class DiscordPermissionBroker {
       await this.rest
         .ackInteraction(d.id, d.token, {
           type: 7,
-          data: { content: "_(this prompt is no longer active)_", components: [] },
+          data: {
+            content: "_(this prompt is no longer active)_",
+            components: [],
+          },
         })
         .catch(() => {});
       return true;
@@ -171,7 +183,10 @@ export class DiscordPermissionBroker {
       await this.rest
         .ackInteraction(d.id, d.token, {
           type: 4,
-          data: { content: "Only the original requester can respond.", flags: 64 },
+          data: {
+            content: "Only the original requester can respond.",
+            flags: 64,
+          },
         })
         .catch(() => {});
       return true;
@@ -188,10 +203,16 @@ export class DiscordPermissionBroker {
         data: { content: `${label} by <@${entry.userId}>`, components: [] },
       })
       .catch((err) => {
-        this.logger.warn({ err, nonce }, "permission: failed to ACK interaction");
+        this.logger.warn(
+          { err, nonce },
+          "permission: failed to ACK interaction",
+        );
       });
 
-    this.logger.info({ userId: entry.userId, nonce, approved }, "permission: resolved");
+    this.logger.info(
+      { userId: entry.userId, nonce, approved },
+      "permission: resolved",
+    );
     entry.resolve(
       approved
         ? { kind: "approved" }
@@ -233,7 +254,8 @@ function formatRequest(req: PermissionRequest): string {
   switch (req.kind) {
     case "shell": {
       const cmd = str(req.fullCommandText);
-      if (cmd) lines.push(`\n**Command:**\n\`\`\`bash\n${trimTo(cmd, 1200)}\n\`\`\``);
+      if (cmd)
+        lines.push(`\n**Command:**\n\`\`\`bash\n${trimTo(cmd, 1200)}\n\`\`\``);
       const warning = str(req.warning);
       if (warning) lines.push(`\n⚠️ ${trimTo(warning, 300)}`);
       const redirect = req.hasWriteFileRedirection === true;
@@ -244,7 +266,8 @@ function formatRequest(req: PermissionRequest): string {
       const file = str(req.fileName);
       if (file) lines.push(`\n**File:** \`${trimTo(file, 300)}\``);
       const diff = str(req.diff);
-      if (diff) lines.push(`\n**Diff:**\n\`\`\`diff\n${trimTo(diff, 1200)}\n\`\`\``);
+      if (diff)
+        lines.push(`\n**Diff:**\n\`\`\`diff\n${trimTo(diff, 1200)}\n\`\`\``);
       break;
     }
     case "read": {
@@ -268,7 +291,8 @@ function formatRequest(req: PermissionRequest): string {
       }
       if (req.args !== undefined) {
         const json = safeJson(req.args);
-        if (json) lines.push(`\n**Args:**\n\`\`\`json\n${trimTo(json, 1000)}\n\`\`\``);
+        if (json)
+          lines.push(`\n**Args:**\n\`\`\`json\n${trimTo(json, 1000)}\n\`\`\``);
       }
       break;
     }
@@ -279,7 +303,8 @@ function formatRequest(req: PermissionRequest): string {
       if (desc) lines.push(`\n**Description:** ${trimTo(desc, 400)}`);
       if (req.args !== undefined) {
         const json = safeJson(req.args);
-        if (json) lines.push(`\n**Args:**\n\`\`\`json\n${trimTo(json, 1000)}\n\`\`\``);
+        if (json)
+          lines.push(`\n**Args:**\n\`\`\`json\n${trimTo(json, 1000)}\n\`\`\``);
       }
       break;
     }
@@ -307,5 +332,5 @@ function safeJson(v: unknown): string | null {
 }
 
 function trimTo(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }

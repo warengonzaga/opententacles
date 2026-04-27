@@ -1,13 +1,10 @@
-import {
-  Client,
-  Events,
-  GatewayIntentBits,
-  Partials,
-} from "discord.js";
+import { Client, Events, GatewayIntentBits, Partials } from "discord.js";
 import { z } from "zod";
 
 export const DiscordChannelConfig = z.object({
-  botToken: z.string().min(1, "discord.botToken not set. Run `opententacles setup`."),
+  botToken: z
+    .string()
+    .min(1, "discord.botToken not set. Run `opententacles setup`."),
 });
 export type DiscordChannelConfigT = z.infer<typeof DiscordChannelConfig>;
 
