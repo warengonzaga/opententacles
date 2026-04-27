@@ -3,7 +3,9 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { resolveDataDir } from "./paths.ts";
 
-export function openDb(path = join(resolveDataDir(), "opententacles.db")): Database {
+export function openDb(
+  path = join(resolveDataDir(), "opententacles.db"),
+): Database {
   if (path !== ":memory:") {
     mkdirSync(dirname(path), { recursive: true });
   }

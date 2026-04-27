@@ -7,7 +7,9 @@ import { join } from "node:path";
  * via the `OPENTENTACLES_DATA_DIR` env var.
  */
 export function resolveDataDir(): string {
-  return process.env.OPENTENTACLES_DATA_DIR ?? join(homedir(), ".opententacles");
+  return (
+    process.env.OPENTENTACLES_DATA_DIR ?? join(homedir(), ".opententacles")
+  );
 }
 
 /** Where Copilot is allowed to operate — cloned repos live here. */
