@@ -16,6 +16,10 @@ type TurnRow = {
   created_at: number;
 };
 
+function isValidRole(v: string): v is "user" | "assistant" {
+  return v === "user" || v === "assistant";
+}
+
 /**
  * SQLite-backed conversation turn store.
  *
@@ -54,12 +58,15 @@ export class MemoryStore {
       )
       .all(ownerId, this.maxTurns);
 
-    return rows.reverse().map((r) => ({
-      role: r.role as "user" | "assistant",
-      content: r.content,
-      channel: r.channel,
-      createdAt: r.created_at,
-    }));
+    return rows.reverse().flatMap((r) => {
+      if (!isValidRole(r.role)) return [];
+      return [{
+        role: r.role,
+        content: r.content,
+        channel: r.channel,
+        createdAt: r.created_at,
+      }];
+    });
   }
 
   /**
@@ -68,11 +75,10 @@ export class MemoryStore {
    */
   formatForInjection(turns: Turn[]): string {
     if (turns.length === 0) return "";
-    const lines = ["--- Previous conversation history (for context) ---"];
-    for (const t of turns) {
-      lines.push(`${t.role === "user" ? "User" : "Assistant"}: ${t.content}`);
-    }
-    lines.push("--- End of history ---");
-    return lines.join("\n");
+    return [
+      "--- Previous conversation history (for context) ---",
+      JSON.stringify({ turns: turns.map((t) => ({ role: t.role, content: t.content })) }),
+      "--- End of history ---",
+    ].join("\n");
   }
 }

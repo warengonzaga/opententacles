@@ -73,9 +73,13 @@ describe("MemoryStore", () => {
 
     const block = store.formatForInjection(store.loadRecent("u1"));
     expect(block).toContain("--- Previous conversation history");
-    expect(block).toContain("User: what repos do I have?");
-    expect(block).toContain("Assistant: you have two repos");
     expect(block).toContain("--- End of history ---");
+    // Content is JSON-serialized to prevent prompt injection via delimiter spoofing.
+    const jsonLine = block.split("\n")[1];
+    const parsed = JSON.parse(jsonLine ?? "") as { turns: { role: string; content: string }[] };
+    expect(parsed.turns).toHaveLength(2);
+    expect(parsed.turns[0]).toEqual({ role: "user", content: "what repos do I have?" });
+    expect(parsed.turns[1]).toEqual({ role: "assistant", content: "you have two repos" });
   });
 
   test("loadRecent returns empty array when no history exists", () => {
