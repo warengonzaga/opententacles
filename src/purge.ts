@@ -18,7 +18,7 @@ import { rm } from "node:fs/promises";
 import * as p from "@clack/prompts";
 import { SecretsEngine } from "@wgtechlabs/secrets-engine";
 import { SECRET_KEYS } from "./core/config.ts";
-import { resolveDataDir } from "./core/paths.ts";
+import { resolveDataDir, resolveSecretsPath } from "./core/paths.ts";
 
 const CONFIRM_PHRASE = "goodbye opententacles";
 const IS_WINDOWS = process.platform === "win32";
@@ -68,7 +68,10 @@ async function deleteDataDir(path: string): Promise<boolean> {
 async function deleteOwnSecrets(): Promise<boolean> {
   let engine: SecretsEngine;
   try {
-    engine = await SecretsEngine.open();
+    const secretsPath = resolveSecretsPath();
+    engine = await SecretsEngine.open(
+      secretsPath ? { path: secretsPath } : undefined,
+    );
   } catch (err) {
     p.log.error(
       `secrets: failed to open store: ${err instanceof Error ? err.message : String(err)}`,

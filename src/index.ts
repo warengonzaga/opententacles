@@ -17,7 +17,10 @@ import { resolveDataDir, resolveWorkspaceDir } from "./core/paths.ts";
 import type { Channel, ScopedCopilot } from "./core/types.ts";
 import { discoverChannels } from "./registry.ts";
 
-function buildSystemMessage(workspaceDir: string, namespaces: string[]): string {
+function buildSystemMessage(
+  workspaceDir: string,
+  namespaces: string[],
+): string {
   const namespaceList =
     namespaces.length > 0
       ? namespaces.map((o) => `"${o}"`).join(", ")

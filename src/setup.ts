@@ -10,6 +10,7 @@ import {
 import {
   resolveConfigDir,
   resolveDataDir,
+  resolveSecretsPath,
   resolveWorkspaceDir,
 } from "./core/paths.ts";
 
@@ -61,10 +62,11 @@ export async function setupCommand(): Promise<void> {
   const discordTokenValue = (discordToken as string).trim();
 
   const ownerIdRaw = await p.text({
-    message: "Discord registered owner user ID (required when bot token is set):",
+    message:
+      "Discord registered owner user ID (required when bot token is set):",
     placeholder: "leave blank only if Discord is disabled",
     validate(value) {
-      if (discordTokenValue && !(value?.trim())) {
+      if (discordTokenValue && !value?.trim()) {
         return "A Discord registered owner user ID is required when a Discord bot token is configured.";
       }
     },
@@ -167,7 +169,10 @@ export async function setupCommand(): Promise<void> {
   s.start("Saving configuration...");
 
   try {
-    const secrets = await SecretsEngine.open();
+    const secretsPath = resolveSecretsPath();
+    const secrets = await SecretsEngine.open(
+      secretsPath ? { path: secretsPath } : undefined,
+    );
     try {
       if (discordToken)
         await secrets.set("discord.botToken", discordToken as string);
