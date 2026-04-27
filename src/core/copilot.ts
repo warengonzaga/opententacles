@@ -113,6 +113,11 @@ export class CopilotOrchestrator {
       } finally {
         offDelta();
         offIdle();
+        // If session.idle never fired (e.g., sendAndWait threw), persist any
+        // partial assistant response so the user turn is not left dangling.
+        if (!idleFired && assistantBuffer) {
+          this.opts.memoryStore?.appendTurn(ownerId, channel, "assistant", assistantBuffer);
+        }
         entry.lastActive = this.now();
         entry.inFlight = null;
       }
