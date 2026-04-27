@@ -32,6 +32,10 @@ COPY --from=builder /app/bun.lock ./bun.lock
 # Install production deps only
 RUN bun install --production --frozen-lockfile
 
+# Pre-create the data directory and grant ownership to the non-root user
+# so Railway volume mounts at /data are writable
+RUN mkdir -p /data && chown opententacles:opententacles /data
+
 USER opententacles
 
 ENV NODE_ENV=production
