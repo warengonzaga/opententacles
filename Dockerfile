@@ -36,4 +36,4 @@ USER opententacles
 
 ENV NODE_ENV=production
 
-CMD ["bun", "run", "dist/index.js"]
+CMD ["bun", "run", "dist/cli.js", "start"]
