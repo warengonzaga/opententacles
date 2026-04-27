@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   console.log("Non-secret config is stored via @wgtechlabs/config-engine.\n");
 
   const discordToken = await ask("Discord bot token: ");
-  const allowlistRaw = await ask("Discord user IDs to allowlist (comma-separated, blank = open): ");
+  const ownerIdRaw = await ask("Discord registered owner user ID (one user only, blank = no restriction): ");
   const channelsRaw = await ask("Enabled channels (comma-separated, default: discord): ");
   const model = await ask("Copilot model (default: gpt-4.1): ");
   const idleTimeout = await ask("Idle session timeout in minutes (default: 30): ");
@@ -55,11 +55,27 @@ async function main(): Promise<void> {
   });
 
   const channels = channelsRaw ? parseList(channelsRaw) : ["discord"];
-  const allowlist = parseList(allowlistRaw);
+
+  // Single-user enforcement.
+  const newUserId = ownerIdRaw.trim() || undefined;
+  const existingOwner = engine.get("discord.registeredOwner") as string | undefined;
+
+  if (newUserId !== undefined) {
+    if (existingOwner && existingOwner !== newUserId) {
+      const confirm = await ask(
+        `A user is already registered (ID: ${existingOwner}). Overwrite with ${newUserId}? (yes/no): `,
+      );
+      if (confirm.toLowerCase() !== "yes") {
+        console.log("Keeping existing registered owner. Setup cancelled.");
+        process.exit(0);
+      }
+    }
+    engine.set("discord.registeredOwner", newUserId);
+  }
+
   const owners = parseList(ownersRaw);
 
   engine.set("channels.enabled", channels);
-  engine.set("discord.allowlist", allowlist);
   engine.set("github.owners", owners);
   if (model) engine.set("copilot.model", model);
   if (idleTimeout) {
