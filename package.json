@@ -1,33 +1,27 @@
 {
   "name": "opententacles",
   "version": "0.2.0",
-  "description": "A GitHub-native AI agent framework that brings Copilot to every place open-source work happens.",
+  "description": "A single-owner control plane for GitHub-hosted Copilot cloud sessions.",
   "type": "module",
-  "main": "dist/cli.js",
-  "bin": {
-    "opententacles": "dist/cli.js"
-  },
-  "files": [
-    "dist"
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "setup": "bun run src/cli.ts setup",
-    "purge": "bun run src/cli.ts purge",
-    "dev": "bun --hot run src/cli.ts start",
-    "start": "bun run src/cli.ts start",
-    "build": "bun build src/cli.ts --outdir dist --target bun --minify",
+    "dev": "OPENTENTACLES_SERVICE=web bun --hot run scripts/start.ts",
+    "start": "node scripts/start.mjs",
+    "migrate": "bun run packages/core/src/migrate.ts",
+    "build": "bun build apps/web/src/index.ts --outdir dist/web --target node && bun build apps/gateway/src/index.ts --outdir dist/gateway --target node && bun build apps/harness/src/index.ts --outdir dist/harness --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@clack/prompts": "^1.2.0",
-    "@github/copilot-sdk": "^0.1.0",
-    "@wgtechlabs/config-engine": "^0.1.0",
-    "@wgtechlabs/log-engine": "^2.3.1",
-    "@wgtechlabs/secrets-engine": "^2.0.0",
+    "@github/copilot-sdk": "^1.0.7",
     "discord.js": "^14.26.3",
+    "postgres": "^3.4.7",
     "zod": "^3.23.0"
   },
   "devDependencies": {

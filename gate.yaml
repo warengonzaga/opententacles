@@ -1,0 +1,6 @@
+version: 1
+maker: harness
+checker: human
+require_approval_for:
+  - github_write
+  - external_request
