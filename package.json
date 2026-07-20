@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "description": "A single-owner control plane for GitHub-hosted Copilot cloud sessions.",
   "type": "module",
-  "private": true,
+  "private": false,
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "cli": "bun run apps/cli/src/index.ts"
+    "cli": "bun run apps/cli/src/index.ts",
+    "prepack": "bun run build"
   },
   "dependencies": {
     "@github/copilot-sdk": "^1.0.7",
@@ -31,12 +32,26 @@
     "typescript": "^5.6.0"
   },
   "engines": {
-    "bun": ">=1.2.0"
+    "bun": ">=1.2.0",
+    "node": ">=24"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/warengonzaga/opententacles.git"
   },
   "author": "Waren Gonzaga",
-  "license": "GPL-3.0"
+  "license": "GPL-3.0",
+  "bin": {
+    "opententacles": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    ".env.example",
+    "docs/ARCHITECTURE.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

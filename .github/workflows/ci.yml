@@ -74,9 +74,19 @@ jobs:
           fi
 
   build:
-    uses: wgtechlabs/build-flow-action/.github/workflows/container.yml@main
+    uses: wgtechlabs/build-flow-action/.github/workflows/app.yml@main
     secrets: inherit
     with:
+      enable-container: true
+      enable-package: true
       ci-profile: node-bun
       ci-runtime-version: '24'
       enable-gitleaks: false
+      publish-dev-artifacts: false
+      publish-pr-artifacts: false
+      package-manager: bun
+      package-path: ./package.json
+      container-platforms: linux/amd64,linux/arm64
+      container-release-platforms: linux/amd64,linux/arm64
+      container-trivy-severity: CRITICAL
+      container-fail-on-vulnerability: true

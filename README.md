@@ -29,6 +29,16 @@ OPENTENTACLES_SERVICE=web bun run scripts/start.ts
 ```
 
 Use Node.js 24 LTS to run packaged services; Bun is the install, test, typecheck, and build toolchain.
+## 🖥️ Local setup with CLI
+
+Use the packaged CLI when you want to self-host outside Railway. You still provide the PostgreSQL `DATABASE_URL`; the CLI writes the rest of the local env, runs migrations, bootstraps the first admin, and can start the local services.
+
+```sh
+npm install -g opententacles
+opententacles setup
+opententacles up
+opententacles chat
+```
 
 ## 🚆 Railway
 

@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline/promises";
+import { doctorCommand, setupCommand, upCommand } from "./bootstrap.ts";
 
 type StoredState = {
   baseUrl: string;
@@ -87,6 +88,15 @@ async function main(): Promise<void> {
   const state = await loadState();
   const [command = "chat", ...args] = process.argv.slice(2);
   switch (command) {
+    case "setup":
+      await setupCommand(state);
+      return;
+    case "up":
+      await upCommand();
+      return;
+    case "doctor":
+      await doctorCommand(state);
+      return;
     case "login":
       await login(state, args[0]);
       return;
@@ -154,7 +164,9 @@ function normalizeBaseUrl(value?: string): string {
 
 async function requireApi(state: StoredState): Promise<ApiClient> {
   if (!state.sessionCookie) {
-    throw new Error("not logged in; run `bun run cli login`");
+    throw new Error(
+      "not logged in; run `opententacles login` or `opententacles setup`",
+    );
   }
   return new ApiClient(state);
 }
@@ -164,7 +176,7 @@ async function login(state: StoredState, baseUrlArg?: string): Promise<void> {
   const api = new ApiClient(state);
   const setup = await api.request<{ required: boolean }>("/api/setup");
   if (setup.data.required) {
-    throw new Error("first-run setup still requires the web dashboard");
+    throw new Error("first-run setup is incomplete; run `opententacles setup`");
   }
   const username = await prompt("username: ");
   const password = await promptSecret("password: ");
@@ -255,7 +267,7 @@ async function newSessionCommand(
 ): Promise<void> {
   const [repoSpec, branch, model] = args;
   if (!repoSpec)
-    throw new Error("usage: bun run cli new owner/repo [branch] [model]");
+    throw new Error("usage: opententacles new owner/repo [branch] [model]");
   const api = await requireApi(state);
   const session = await createSession(
     api,
@@ -682,16 +694,19 @@ function printHelp(): void {
   console.log(`OpenTentacles CLI
 
 Commands:
-  bun run cli login [url]
-  bun run cli logout
-  bun run cli sessions
-  bun run cli approvals
-  bun run cli approve <approval-id>
-  bun run cli deny <approval-id>
-  bun run cli new owner/repo [branch] [model]
-  bun run cli resume <session-id>
-  bun run cli stop <session-id>
-  bun run cli chat [session-id]
+  opententacles setup
+  opententacles up
+  opententacles doctor
+  opententacles login [url]
+  opententacles logout
+  opententacles sessions
+  opententacles approvals
+  opententacles approve <approval-id>
+  opententacles deny <approval-id>
+  opententacles new owner/repo [branch] [model]
+  opententacles resume <session-id>
+  opententacles stop <session-id>
+  opententacles chat [session-id]
 `);
 }
 
