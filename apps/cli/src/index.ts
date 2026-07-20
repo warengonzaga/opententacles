@@ -5,9 +5,9 @@ import { createInterface } from "node:readline/promises";
 import { doctorCommand, setupCommand, upCommand } from "./bootstrap.ts";
 import {
   ApiClient,
-  type StoredState,
   normalizeBaseUrl,
   readSessionCookie,
+  type StoredState,
   saveState,
   statePath,
 } from "./shared.ts";
@@ -117,7 +117,6 @@ async function loadState(): Promise<StoredState> {
     };
   }
 }
-
 
 async function requireApi(state: StoredState): Promise<ApiClient> {
   if (!state.sessionCookie) {
