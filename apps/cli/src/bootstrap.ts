@@ -16,7 +16,6 @@ import {
   normalizeBaseUrl,
   readSessionCookie,
   saveState,
-  statePath,
 } from "./shared.ts";
 
 type Session = { id: string };
