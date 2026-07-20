@@ -1,10 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "./db.ts";
 
-function json(value: unknown): string {
-  return JSON.stringify(value);
-}
-
 export type AgentSession = {
   id: string;
   copilot_session_id: string | null;
@@ -24,7 +20,7 @@ export class Store {
     detail: Record<string, unknown> = {},
   ): Promise<void> {
     await this
-      .db`INSERT INTO audit_log(action, detail) VALUES (${action}, ${json(detail)}::jsonb)`;
+      .db`INSERT INTO audit_log(action, detail) VALUES (${action}, ${JSON.stringify(detail)}::jsonb)`;
   }
 
   async paused(): Promise<boolean> {
@@ -41,7 +37,7 @@ export class Store {
   ): Promise<number> {
     const rows = await this.db<
       { id: number }[]
-    >`INSERT INTO session_events(agent_session_id,type,payload) VALUES (${agentSessionId},${type},${json(payload)}::jsonb) RETURNING id`;
+    >`INSERT INTO session_events(agent_session_id,type,payload) VALUES (${agentSessionId},${type},${JSON.stringify(payload)}::jsonb) RETURNING id`;
     return rows[0]?.id ?? 0;
   }
 
@@ -140,7 +136,7 @@ export class Store {
   ): Promise<string> {
     const id = randomUUID();
     await this
-      .db`INSERT INTO approvals(id,agent_session_id,request,expires_at) VALUES (${id},${agentSessionId},${json(request)}::jsonb,now() + (${seconds} * interval '1 second'))`;
+      .db`INSERT INTO approvals(id,agent_session_id,request,expires_at) VALUES (${id},${agentSessionId},${JSON.stringify(request)}::jsonb,now() + (${seconds} * interval '1 second'))`;
     return id;
   }
 
