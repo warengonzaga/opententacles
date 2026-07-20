@@ -2,8 +2,7 @@ import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline/promises";
@@ -11,12 +10,13 @@ import { fileURLToPath } from "node:url";
 import { requireKey } from "../../../packages/core/src/crypto.ts";
 import { connectDatabase } from "../../../packages/core/src/db.ts";
 import { migrate } from "../../../packages/core/src/migrations.ts";
-
-type StoredState = {
-  baseUrl: string;
-  sessionCookie?: string;
-  lastSessionId?: string;
-};
+import {
+  ApiClient,
+  normalizeBaseUrl,
+  readSessionCookie,
+  type StoredState,
+  saveState,
+} from "./shared.ts";
 
 type Session = { id: string };
 
@@ -41,51 +41,8 @@ type ServiceHandle = {
   stop: () => Promise<void>;
 };
 
-const stateDir = join(homedir(), ".opententacles");
-const statePath = join(stateDir, "cli.json");
 const envPath = resolve(process.cwd(), ".env");
 const cliDir = dirname(fileURLToPath(import.meta.url));
-
-class ApiClient {
-  constructor(private readonly state: StoredState) {}
-
-  async request<T>(
-    path: string,
-    init: RequestInit = {},
-  ): Promise<{ data: T; headers: Headers }> {
-    const response = await this.fetch(path, init);
-    const text = await response.text();
-    const data = text ? (JSON.parse(text) as { error?: string }) : {};
-    if (!response.ok) {
-      throw new Error(
-        typeof data.error === "string"
-          ? data.error
-          : `request failed (${response.status})`,
-      );
-    }
-    return { data: data as T, headers: response.headers };
-  }
-
-  fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const headers = new Headers(init.headers);
-    if (this.state.sessionCookie) {
-      headers.set(
-        "cookie",
-        `ot_session=${encodeURIComponent(this.state.sessionCookie)}`,
-      );
-    }
-    return fetch(new URL(path, this.state.baseUrl), { ...init, headers });
-  }
-}
-
-function normalizeBaseUrl(value?: string): string {
-  return new URL(value ?? "http://localhost:3000").toString();
-}
-
-async function saveState(state: StoredState): Promise<void> {
-  await mkdir(stateDir, { recursive: true });
-  await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-}
 
 async function readLocalEnv(): Promise<LocalEnv> {
   try {
@@ -168,16 +125,6 @@ async function databaseOk(databaseUrl: string): Promise<boolean> {
   } finally {
     await db.end().catch(() => undefined);
   }
-}
-
-function readSessionCookie(headers: Headers): string | undefined {
-  const withSetCookies = headers as Headers & { getSetCookie?: () => string[] };
-  const values = withSetCookies.getSetCookie?.() ?? [];
-  const combined = values.length
-    ? values.join(";")
-    : (headers.get("set-cookie") ?? "");
-  const match = combined.match(/ot_session=([^;]+)/);
-  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
 function report(name: string, ok: boolean, detail?: string): void {
