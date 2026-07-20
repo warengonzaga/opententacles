@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",
-    "@github/copilot-sdk": "^0.3.0",
+    "@github/copilot-sdk": "^1.0.7",
     "@wgtechlabs/config-engine": "^0.1.0",
     "@wgtechlabs/log-engine": "^2.3.1",
     "@wgtechlabs/secrets-engine": "^2.0.0",
