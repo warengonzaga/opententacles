@@ -39,3 +39,7 @@ Expose a public domain only for `web`. Configure Discord through the authenticat
 ## Limits and non-goals
 
 The deployment supports one owner. Sandbox-local reads, writes, and tests are allowed; GitHub and external side effects wait for an approval. There is no multi-user access, BYOK, local stdio MCP, Telegram/WhatsApp/guild channels, Redis, workflow engine, local runner, automatic push/merge, or scheduler loop.
+
+## 🐛 Issues
+
+Please report any issues and bugs by [creating a new issue here](https://github.com/warengonzaga/opententacles/issues/new/choose), also make sure you're reporting an issue that doesn't exist. If useful, include the relevant service: `web`, `gateway`, or `harness`. Any help to improve the project would be appreciated. Thanks! 🙏✨
