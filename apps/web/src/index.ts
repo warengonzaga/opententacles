@@ -228,11 +228,15 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (!action && request.method === "GET") {
-        return json(
-          response,
-          200,
-          await db`SELECT m.id,m.role,m.content,m.created_at FROM messages m JOIN agent_sessions s ON s.conversation_id=m.conversation_id WHERE s.id=${id} ORDER BY m.sequence`,
+        const messages =
+          await db`SELECT m.id,m.role,m.content,m.created_at FROM messages m JOIN agent_sessions s ON s.conversation_id=m.conversation_id WHERE s.id=${id} ORDER BY m.sequence`;
+        const cursor =
+          await db`SELECT COALESCE(max(id), 0)::bigint AS last_event_id FROM session_events WHERE agent_session_id=${id}`;
+        response.setHeader(
+          "x-last-event-id",
+          String(cursor[0]?.last_event_id ?? 0),
         );
+        return json(response, 200, messages);
       }
       if (action === "prompt" && request.method === "POST") {
         const input = z

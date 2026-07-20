@@ -12,11 +12,12 @@
     "dev": "OPENTENTACLES_SERVICE=web bun --hot run scripts/start.ts",
     "start": "node scripts/start.mjs",
     "migrate": "bun run packages/core/src/migrate.ts",
-    "build": "bun build apps/web/src/index.ts --outdir dist/web --target node && bun build apps/gateway/src/index.ts --outdir dist/gateway --target node && bun build apps/harness/src/index.ts --outdir dist/harness --target node",
+    "build": "bun build apps/web/src/index.ts --outdir dist/web --target node && bun build apps/gateway/src/index.ts --outdir dist/gateway --target node && bun build apps/harness/src/index.ts --outdir dist/harness --target node && bun build apps/cli/src/index.ts --outdir dist/cli --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "cli": "bun run apps/cli/src/index.ts"
   },
   "dependencies": {
     "@github/copilot-sdk": "^1.0.7",
