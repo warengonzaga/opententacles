@@ -1,5 +1,7 @@
 # OpenTentacles
 
+![Open Tentacles](https://ghrb.waren.build/banner?header=Open+Tentacles+%F0%9F%90%99&subheader=Give+GitHub+Copilot+arms.&bg=013B84-016EEA&color=ffffff)
+
 OpenTentacles is a self-hosted, single-owner control plane for GitHub-hosted Copilot cloud sessions. It has a password-protected web dashboard, an owner-only Discord DM gateway, a durable Copilot harness, and PostgreSQL.
 
 ## Architecture
@@ -15,6 +17,8 @@ One Docker image runs three independently restartable Railway services selected 
 
 The harness is the only service with the Copilot token. It creates GitHub-hosted cloud sessions through `@github/copilot-sdk`, waits for the remote `copilot-agent` before the first prompt, and persists the Mission Control URL.
 
+See [the architecture documentation](docs/ARCHITECTURE.md) for data flows, trust boundaries, operations, and deployment prerequisites.
+
 ## Local development
 
 ```sh
@@ -24,11 +28,11 @@ bun run migrate
 OPENTENTACLES_SERVICE=web bun run scripts/start.ts
 ```
 
-Use Node.js LTS to run packaged services; Bun is the install, test, typecheck, and build toolchain.
+Use Node.js 24 LTS to run packaged services; Bun is the install, test, typecheck, and build toolchain.
 
 ## Railway
 
-Create one Railway project with a PostgreSQL service and three services from this repository. Set `OPENTENTACLES_SERVICE` to `web`, `gateway`, and `harness` respectively. Give all three the same `DATABASE_URL`, `OPENTENTACLES_APP_URL`, `OPENTENTACLES_ENCRYPTION_KEY`, and `OPENTENTACLES_SESSION_KEY`. Set `COPILOT_GITHUB_TOKEN` only on `harness`; it needs a fine-grained token with Copilot Requests and access to the repositories it controls.
+Create one Railway project with a PostgreSQL service and three services from this repository. Set `OPENTENTACLES_SERVICE` to `web`, `gateway`, and `harness` respectively. Give all three the same `DATABASE_URL`, `OPENTENTACLES_APP_URL`, and `OPENTENTACLES_ENCRYPTION_KEY`; set `OPENTENTACLES_SESSION_KEY` only on `web`. Set `COPILOT_GITHUB_TOKEN` only on `harness`; it needs a fine-grained token with Copilot Requests and access to the repositories it controls.
 
 Expose a public domain only for `web`. Configure Discord through the authenticated dashboard, where credentials are encrypted with AES-256-GCM before storage.
 
