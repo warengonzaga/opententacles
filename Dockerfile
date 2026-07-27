@@ -7,7 +7,7 @@ COPY packages ./packages
 COPY scripts ./scripts
 RUN bun run build
 
-FROM node:24-alpine AS production
+FROM node:26-alpine AS production
 WORKDIR /app
 RUN addgroup --gid 1001 opententacles && adduser --uid 1001 --ingroup opententacles --disabled-password --no-create-home opententacles
 COPY --from=builder /app/node_modules ./node_modules
