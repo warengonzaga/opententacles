@@ -24,7 +24,7 @@
     "@github/copilot-sdk": "^1.0.7",
     "discord.js": "^14.26.3",
     "postgres": "^3.4.7",
-    "zod": "^3.23.0"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
