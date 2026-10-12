@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   build-flow:
-    uses: wgtechlabs/build-flow-action/.github/workflows/app.yml@v0.3.1
+    uses: wgtechlabs/build-flow-action/.github/workflows/app.yml@v1.0.0
     secrets: inherit
     with:
       ci-profile: auto
